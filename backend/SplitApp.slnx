@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SplitApp.Api/SplitApp.Api.csproj" />
+  <Project Path="SplitApp.Application/SplitApp.Application.csproj" />
+  <Project Path="SplitApp.Domain/SplitApp.Domain.csproj" />
+  <Project Path="SplitApp.Infrastructure/SplitApp.Infrastructure.csproj" />
+</Solution>
