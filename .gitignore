@@ -19,26 +19,20 @@ dist-ssr/
 build/
 .npm/
 
-## Pliki środowiskowe (lokalne)
+## 
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-## Logi npm
+## npm
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# =========================
-# IDE i OS
-# =========================
+# IDE & OS
 .idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode/
 
 .DS_Store
 Thumbs.db
