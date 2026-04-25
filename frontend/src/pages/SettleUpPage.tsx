@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import api from '../api';
 import SettleUp from '../components/SettleUp';
+import AppLayout from '../components/AppLayout';
 
 interface User {
   id: string;
@@ -25,7 +26,6 @@ interface GroupDetails {
 
 const SettleUpPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [group, setGroup] = useState<GroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,33 +47,25 @@ const SettleUpPage: React.FC = () => {
   }, [id]);
 
   if (loading) {
-    return <div className="min-h-screen bg-background flex justify-center items-center text-on-surface">Loading...</div>;
+    return (
+      <AppLayout title="Settlements" backTo={`/groups/${id}`}>
+        <div className="py-20 text-center text-on-surface-variant">Loading...</div>
+      </AppLayout>
+    );
   }
 
   if (!group) {
-    return <div className="min-h-screen bg-background flex justify-center items-center text-error">Group not found</div>;
+    return (
+      <AppLayout title="Settlements" backTo={`/groups/${id}`}>
+        <div className="py-20 text-center text-error">Group not found</div>
+      </AppLayout>
+    );
   }
 
   return (
-    <div className="bg-background font-body text-on-background min-h-screen pb-32">
-      <header className="fixed top-0 w-full z-50 bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm border-b border-white/20 dark:shadow-none">
-        <div className="flex items-center justify-between px-6 h-16 w-full max-w-screen-xl mx-auto">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate(`/groups/${id}`)}
-              className="text-primary dark:text-primary-container hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-95 duration-200 p-2 rounded-full"
-            >
-              <span className="material-symbols-outlined">arrow_back</span>
-            </button>
-            <h1 className="font-headline font-extrabold text-primary dark:text-white tracking-tighter text-2xl">Rozliczenia</h1>
-          </div>
-        </div>
-      </header>
-
-      <main className="pt-24 px-6 max-w-screen-xl mx-auto">
-        <SettleUp groupId={id || ''} debts={group.optimizedDebts || []} members={group.members} currency={group.currency} />
-      </main>
-    </div>
+    <AppLayout title="Settlements" backTo={`/groups/${id}`}>
+      <SettleUp groupId={id || ''} debts={group.optimizedDebts || []} members={group.members} currency={group.currency} />
+    </AppLayout>
   );
 };
 

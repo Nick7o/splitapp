@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import BottomNav from '../components/BottomNav';
+import AppLayout from '../components/AppLayout';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -13,16 +13,9 @@ const Profile: React.FC = () => {
   };
 
   return (
-    <div className="text-on-surface antialiased min-h-screen bg-background pb-32">
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm border-b border-white/5">
-        <div className="flex items-center justify-between px-6 h-16 w-full max-w-screen-xl mx-auto">
-          <h1 className="font-headline font-bold text-on-surface text-2xl tracking-wide">Profil</h1>
-        </div>
-      </header>
-
-      <main className="pt-24 px-6 max-w-screen-xl mx-auto max-w-md">
-        <div className="glass-panel p-8 rounded-3xl text-center mb-8">
-          <div className="w-24 h-24 bg-primary text-on-primary rounded-full mx-auto flex items-center justify-center text-4xl font-headline font-bold mb-4 shadow-lg shadow-primary/20">
+    <AppLayout title="Profile" maxWidthClassName="max-w-md">
+        <div className="app-card-strong mb-8 p-6 text-center sm:p-8">
+          <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-primary text-4xl font-bold text-on-primary shadow-lg shadow-primary/20">
             {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
           </div>
           <h2 className="font-headline text-2xl font-bold">{user.name}</h2>
@@ -32,16 +25,13 @@ const Profile: React.FC = () => {
         <div className="space-y-4">
           <button 
             onClick={handleLogout}
-            className="w-full bg-error/10 text-error px-6 py-4 rounded-xl font-headline font-bold text-base flex items-center justify-center gap-2 hover:bg-error/20 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-error/20 bg-error/10 px-6 py-4 font-body text-base font-bold text-error transition-colors hover:bg-error/20 focus:outline-none focus:ring-2 focus:ring-error/60 focus:ring-offset-2 focus:ring-offset-background"
           >
             <span className="material-symbols-outlined">logout</span>
-            Wyloguj się
+            Log out
           </button>
         </div>
-      </main>
-
-      <BottomNav />
-    </div>
+    </AppLayout>
   );
 };
 

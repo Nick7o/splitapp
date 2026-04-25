@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api';
+import AppLayout from '../components/AppLayout';
 
 interface User {
   id: string;
@@ -13,6 +14,26 @@ interface GroupDetails {
   name: string;
   currency: string;
   members: User[];
+}
+
+interface ExpenseSplit {
+  userId: string;
+  owedAmount: number;
+}
+
+interface ExpenseDetails {
+  totalAmount: number;
+  title: string;
+  payerId: string;
+  splits: ExpenseSplit[];
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      Error?: string;
+    };
+  };
 }
 
 const AddExpense: React.FC = () => {
@@ -31,7 +52,8 @@ const AddExpense: React.FC = () => {
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({}); // Stores percentages or exact amounts
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}') as Partial<User>, []);
+  const currentUserId = currentUser.id;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,7 +63,7 @@ const AddExpense: React.FC = () => {
         
         if (expenseId) {
           const expenseRes = await api.get(`/expenses/${expenseId}`);
-          const exp = expenseRes.data;
+          const exp = expenseRes.data as ExpenseDetails;
           setAmount(exp.totalAmount.toString());
           setDescription(exp.title);
           setPayerId(exp.payerId);
@@ -51,14 +73,14 @@ const AddExpense: React.FC = () => {
           const selected = new Set<string>();
           const custom: Record<string, string> = {};
           
-          exp.splits.forEach((s: any) => {
+          exp.splits.forEach((s) => {
             selected.add(s.userId);
             custom[s.userId] = s.owedAmount.toString();
           });
           
           setSelectedMembers(selected);
           setCustomSplits(custom);
-          const allEqual = exp.splits.every((s: any) => Math.abs(s.owedAmount - exp.splits[0].owedAmount) < 0.01);
+          const allEqual = exp.splits.every((s) => Math.abs(s.owedAmount - exp.splits[0].owedAmount) < 0.01);
           if (allEqual && exp.splits.length === groupRes.data.members.length) {
             setSplitMethod('equally');
           } else {
@@ -66,7 +88,7 @@ const AddExpense: React.FC = () => {
           }
           
         } else {
-          setPayerId(currentUser.id);
+          setPayerId(currentUserId || '');
           // By default, select all members for the split
           const allMemberIds = new Set<string>(groupRes.data.members.map((m: User) => m.id));
           setSelectedMembers(allMemberIds);
@@ -78,7 +100,7 @@ const AddExpense: React.FC = () => {
       }
     };
     if (id) fetchData();
-  }, [id, expenseId]);
+  }, [id, expenseId, currentUserId]);
 
   const toggleMemberSelection = (memberId: string) => {
     const newSelection = new Set(selectedMembers);
@@ -125,13 +147,13 @@ const AddExpense: React.FC = () => {
 
   const handleSave = async () => {
     if (!group || !amount || !description || !payerId) {
-      alert('Wypełnij wszystkie wymagane pola.');
+      alert('Please fill in all required fields.');
       return;
     }
 
     const totalAmount = parseFloat(amount);
     if (isNaN(totalAmount) || totalAmount <= 0) {
-      alert('Podaj prawidłową kwotę.');
+      alert('Please enter a valid amount.');
       return;
     }
 
@@ -144,7 +166,7 @@ const AddExpense: React.FC = () => {
     
     // Check if the sum matches total amount (with small tolerance for floating point)
     if (Math.abs(splitsSum - totalAmount) > 0.05) {
-      alert(`Suma podziału (${splitsSum.toFixed(2)}) nie zgadza się z całkowitą kwotą (${totalAmount.toFixed(2)}).`);
+      alert(`Split total (${splitsSum.toFixed(2)}) does not match the full amount (${totalAmount.toFixed(2)}).`);
       return;
     }
 
@@ -164,61 +186,63 @@ const AddExpense: React.FC = () => {
         await api.post('/expenses', payload);
       }
       navigate(`/groups/${id}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save expense', error);
-      alert(error.response?.data?.Error || 'Wystąpił błąd podczas zapisywania wydatku.');
+      const apiError = error as ApiError;
+      alert(apiError.response?.data?.Error || 'An error occurred while saving the expense.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-background flex justify-center items-center text-on-surface">Ładowanie...</div>;
-  if (!group) return <div className="min-h-screen bg-background flex justify-center items-center text-error">Nie znaleziono grupy.</div>;
+  if (loading) {
+    return (
+      <AppLayout title="Expense" backTo={`/groups/${id}`} maxWidthClassName="max-w-2xl">
+        <div className="py-20 text-center text-on-surface-variant">Loading...</div>
+      </AppLayout>
+    );
+  }
+
+  if (!group) {
+    return (
+      <AppLayout title="Expense" backTo={`/groups/${id}`} maxWidthClassName="max-w-2xl">
+        <div className="py-20 text-center text-error">Group not found.</div>
+      </AppLayout>
+    );
+  }
 
   return (
-    <div className="bg-background text-on-background min-h-screen pb-32">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm border-b border-white/20 dark:shadow-none">
-        <div className="flex items-center justify-between px-6 h-16 w-full max-w-screen-xl mx-auto">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate(`/groups/${id}`)}
-              className="text-primary dark:text-primary-container hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-95 duration-200 p-2 rounded-full"
-            >
-              <span className="material-symbols-outlined">arrow_back</span>
-            </button>
-            <span className="font-headline font-extrabold text-primary dark:text-white tracking-tighter text-2xl">SplitApp</span>
-          </div>
-        </div>
-      </header>
-
-      <main className="pt-24 px-6 max-w-2xl mx-auto">
-          <div className="mb-10 text-left flex items-center justify-between">
+    <AppLayout
+      title={expenseId ? 'Edit expense' : 'New expense'}
+      backTo={`/groups/${id}`}
+      maxWidthClassName="max-w-2xl"
+    >
+          <div className="mb-8 flex items-start justify-between gap-4 text-left">
             <div>
-              <h1 className="text-4xl font-extrabold text-on-surface tracking-tight leading-tight mb-2">
-                {expenseId ? 'Edytuj Wydatek' : 'Nowy Wydatek'}
+              <h1 className="mb-2 text-3xl font-extrabold leading-tight tracking-tight text-on-surface sm:text-4xl">
+                {expenseId ? 'Edit Expense' : 'New Expense'}
               </h1>
               <p className="text-on-surface-variant font-body">
-                {expenseId ? 'Zmień szczegóły wydatku.' : 'Dodaj koszt i podziel go między członków grupy.'}
+                {expenseId ? 'Update expense details.' : 'Add a cost and split it between group members.'}
               </p>
             </div>
             {expenseId && (
               <button 
                 onClick={async () => {
-                  if (window.confirm('Czy na pewno chcesz usunąć ten wydatek?')) {
+                  if (window.confirm('Are you sure you want to delete this expense?')) {
                     try {
                       await api.delete(`/expenses/${expenseId}?groupId=${id}`);
                       navigate(`/groups/${id}`);
                     } catch (error) {
                       console.error('Failed to delete expense', error);
-                      alert('Nie udało się usunąć wydatku.');
+                      alert('Failed to delete expense.');
                     }
                   }
                 }}
-                className="p-3 text-error hover:bg-error/10 rounded-xl transition-colors flex flex-col items-center"
+                className="flex flex-col items-center rounded-xl p-3 text-error transition-colors hover:bg-error/10 focus:outline-none focus:ring-2 focus:ring-error/60 focus:ring-offset-2 focus:ring-offset-background"
               >
                 <span className="material-symbols-outlined">delete</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider mt-1">Usuń</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider mt-1">Delete</span>
               </button>
             )}
           </div>
@@ -226,15 +250,15 @@ const AddExpense: React.FC = () => {
         <div className="space-y-12">
           {/* Step 1: Core Details */}
           <section className="space-y-6">
-            <div className="bg-surface-container-lowest backdrop-blur-lg border border-outline-variant/30 rounded-xl p-8 shadow-soft">
+            <div className="app-card p-5 sm:p-6">
               <div className="space-y-8">
                 
                 {/* Amount Input */}
                 <div className="text-center">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-4">Kwota ({group.currency})</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-4">Amount ({group.currency})</label>
                   <div className="relative inline-flex items-center">
                     <input 
-                      className="w-full text-5xl font-headline font-extrabold text-primary bg-transparent border-none focus:ring-0 text-center placeholder:text-outline-variant" 
+                      className="w-full border-none bg-transparent text-center font-headline text-5xl font-extrabold text-secondary placeholder:text-on-surface-variant/50 focus:ring-0" 
                       placeholder="0.00" 
                       type="number"
                       step="0.01"
@@ -247,10 +271,10 @@ const AddExpense: React.FC = () => {
 
                 {/* Description Input */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">Za co to było?</label>
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">What was this for?</label>
                   <input 
-                    className="w-full h-14 px-5 bg-surface-container-lowest backdrop-blur-md border border-outline-variant/30 rounded-xl focus:ring-2 focus:ring-secondary/40 text-on-surface placeholder:text-on-surface-variant/50 font-medium shadow-sm" 
-                    placeholder="np. Obiad u Włocha" 
+                    className="app-input h-14 px-5 font-medium" 
+                    placeholder="e.g. Dinner at an Italian place" 
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -259,19 +283,19 @@ const AddExpense: React.FC = () => {
 
                 {/* Payer Selection */}
                 <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">Kto zapłacił?</label>
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">Who paid?</label>
                   <div className="flex flex-wrap gap-3">
                     {group.members.map(member => {
                       const isSelected = payerId === member.id;
-                      const isMe = member.id === currentUser.id;
+                      const isMe = member.id === currentUserId;
                       return (
                         <button 
                           key={member.id}
                           onClick={() => setPayerId(member.id)}
-                          className={`flex items-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-sm active:scale-95 transition-all ${isSelected ? 'bg-primary text-on-primary shadow-soft border border-primary-container' : 'bg-surface-container-lowest backdrop-blur-md border border-outline-variant/30 text-on-surface hover:bg-surface-container-high'}`}
+                          className={`flex items-center gap-2 rounded-xl px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-secondary/50 active:scale-95 ${isSelected ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface hover:bg-surface-container-high'}`}
                         >
                           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
-                          <span>{isMe ? 'Ty' : member.name}</span>
+                          <span>{isMe ? 'You' : member.name}</span>
                         </button>
                       );
                     })}
@@ -284,54 +308,54 @@ const AddExpense: React.FC = () => {
           {/* Step 2: Split Method */}
           <section className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-on-surface">Metoda podziału</h2>
+              <h2 className="text-xl font-bold text-on-surface">Split method</h2>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <button 
                 onClick={() => setSplitMethod('equally')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl gap-2 shadow-sm transition-colors ${splitMethod === 'equally' ? 'bg-primary text-on-primary shadow-soft border border-primary-container' : 'bg-surface-container-lowest backdrop-blur-md border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high'}`}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'equally' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">equalizer</span>
-                <span className="text-xs font-bold uppercase tracking-tight">Po równo</span>
+                <span className="text-xs font-bold uppercase tracking-tight">Equal</span>
               </button>
               <button 
                 onClick={() => setSplitMethod('percent')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl gap-2 shadow-sm transition-colors ${splitMethod === 'percent' ? 'bg-primary text-on-primary shadow-soft border border-primary-container' : 'bg-surface-container-lowest backdrop-blur-md border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high'}`}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'percent' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">percent</span>
-                <span className="text-xs font-bold uppercase tracking-tight">Procentowo</span>
+                <span className="text-xs font-bold uppercase tracking-tight">Percent</span>
               </button>
               <button 
                 onClick={() => setSplitMethod('exact')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl gap-2 shadow-sm transition-colors ${splitMethod === 'exact' ? 'bg-primary text-on-primary shadow-soft border border-primary-container' : 'bg-surface-container-lowest backdrop-blur-md border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high'}`}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'exact' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">payments</span>
-                <span className="text-xs font-bold uppercase tracking-tight">Dokładnie</span>
+                <span className="text-xs font-bold uppercase tracking-tight">Exact</span>
               </button>
             </div>
 
             {/* Split Details List */}
-            <div className="bg-surface-container-lowest backdrop-blur-lg border border-outline-variant/30 rounded-2xl p-6 space-y-4 shadow-soft">
+            <div className="app-card space-y-4 p-5 sm:p-6">
               <div className="flex items-center justify-between px-2">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Uczestnicy</span>
+                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Participants</span>
                 {splitMethod === 'equally' && (
-                  <button onClick={selectAllMembers} className="text-xs font-bold text-secondary uppercase tracking-widest hover:text-secondary-container transition-colors">Zaznacz wszystkich</button>
+                  <button onClick={selectAllMembers} className="text-xs font-bold text-secondary uppercase tracking-widest hover:text-secondary-container transition-colors">Select all</button>
                 )}
               </div>
               <div className="space-y-3">
                 {group.members.map(member => {
-                  const isMe = member.id === currentUser.id;
+                  const isMe = member.id === currentUserId;
                   const isSelected = selectedMembers.has(member.id);
                   const owedAmount = calculateOwedAmount(member.id);
 
                   return (
-                    <div key={member.id} className="flex items-center justify-between p-4 bg-surface-container-high backdrop-blur-sm border border-outline-variant/30 rounded-xl shadow-sm">
+                    <div key={member.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-surface-container p-4 shadow-sm">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant">
                           <span className="material-symbols-outlined">person</span>
                         </div>
                         <div>
-                          <p className="font-bold text-on-surface font-headline">{isMe ? 'Ty' : member.name}</p>
+                          <p className="font-bold text-on-surface font-headline">{isMe ? 'You' : member.name}</p>
                           {splitMethod === 'equally' ? (
                             <p className="text-xs text-secondary font-medium">{owedAmount.toFixed(2)} {group.currency}</p>
                           ) : (
@@ -340,7 +364,7 @@ const AddExpense: React.FC = () => {
                                 type="number" 
                                 min="0"
                                 step={splitMethod === 'percent' ? '1' : '0.01'}
-                                className="w-24 text-sm px-3 py-1.5 border border-outline-variant/50 rounded-lg bg-surface-container-lowest text-on-surface font-bold focus:ring-2 focus:ring-primary outline-none"
+                                className="w-24 rounded-lg border border-white/10 bg-surface-container-low px-3 py-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-secondary/50"
                                 placeholder={splitMethod === 'percent' ? '%' : '0.00'}
                                 value={customSplits[member.id] || ''}
                                 onChange={(e) => handleCustomSplitChange(member.id, e.target.value)}
@@ -356,7 +380,7 @@ const AddExpense: React.FC = () => {
                       {splitMethod === 'equally' && (
                         <button 
                           onClick={() => toggleMemberSelection(member.id)}
-                          className={`w-6 h-6 rounded-full flex items-center justify-center shadow-sm border transition-colors ${isSelected ? 'bg-primary text-on-primary border-primary-container' : 'bg-surface-container border-outline-variant text-transparent'}`}
+                          className={`flex h-6 w-6 items-center justify-center rounded-full border shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${isSelected ? 'border-primary-container bg-primary text-on-primary' : 'border-white/20 bg-surface-container-high text-transparent'}`}
                         >
                           <span className="material-symbols-outlined text-sm font-bold">check</span>
                         </button>
@@ -373,14 +397,13 @@ const AddExpense: React.FC = () => {
             <button 
               onClick={handleSave}
               disabled={submitting}
-              className="w-full h-16 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-headline font-bold text-lg shadow-soft shadow-primary/30 active:scale-[0.98] transition-all border border-white/10 disabled:opacity-50"
+              className="app-button-primary h-14 w-full text-base"
             >
-              {submitting ? 'Zapisywanie...' : 'Zapisz wydatek'}
+              {submitting ? 'Saving...' : 'Save expense'}
             </button>
           </div>
         </div>
-      </main>
-    </div>
+    </AppLayout>
   );
 };
 

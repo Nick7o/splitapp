@@ -1,9 +1,28 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import api from '../api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface AuthResponse {
+  token: string;
+  user: AuthUser;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -13,7 +32,7 @@ const Login: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
 
-  const handleAuthSuccess = (token: string, user: any) => {
+  const handleAuthSuccess = (token: string, user: AuthUser) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     
@@ -26,15 +45,15 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     try {
-      const res = await api.post('/auth/google', {
+      const res = await api.post<AuthResponse>('/auth/google', {
         credential: credentialResponse.credential
       });
       handleAuthSuccess(res.data.token, res.data.user);
     } catch (error) {
       console.error('Login failed', error);
-      setError('Logowanie przez Google nie powiodło się.');
+      setError('Google login failed.');
     }
   };
 
@@ -44,38 +63,39 @@ const Login: React.FC = () => {
 
     try {
       if (isRegistering) {
-        const res = await api.post('/auth/register', { email, password, name });
+        const res = await api.post<AuthResponse>('/auth/register', { email, password, name });
         handleAuthSuccess(res.data.token, res.data.user);
       } else {
-        const res = await api.post('/auth/login', { email, password });
+        const res = await api.post<AuthResponse>('/auth/login', { email, password });
         handleAuthSuccess(res.data.token, res.data.user);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Auth failed', err);
-      setError(err.response?.data?.message || 'Wystąpił błąd autoryzacji.');
+      const apiError = err as ApiError;
+      setError(apiError.response?.data?.message || 'Authentication failed.');
     }
   };
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="min-h-screen bg-background flex flex-col justify-center items-center p-6">
-        <div className="w-full max-w-md bg-surface-container-lowest backdrop-blur-lg border border-white/60 rounded-2xl p-8 shadow-soft text-center">
-          <h1 className="font-headline font-extrabold text-primary tracking-tighter text-4xl mb-2">SplitApp</h1>
-          <p className="text-on-surface-variant font-body mb-8">Zarządzaj wydatkami grupowymi bez stresu.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+        <div className="app-card-strong w-full max-w-md p-6 text-center sm:p-8">
+          <h1 className="mb-2 font-headline text-4xl font-extrabold tracking-tighter text-secondary">SplitApp</h1>
+          <p className="text-on-surface-variant font-body mb-8">Manage group expenses without the stress.</p>
           
           {error && <div className="mb-4 p-3 bg-error/10 text-error rounded-xl text-sm font-medium">{error}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-4 mb-6 text-left">
             {isRegistering && (
               <div>
-                <label className="block text-sm font-semibold text-on-surface-variant mb-1">Imię</label>
+                <label className="block text-sm font-semibold text-on-surface-variant mb-1">Name</label>
                 <input 
                   type="text" 
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-surface-container border border-white/10 rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary focus:outline-none"
-                  placeholder="Twoje imię"
+                  className="app-input"
+                  placeholder="Your name"
                 />
               </div>
             )}
@@ -86,32 +106,32 @@ const Login: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-surface-container border border-white/10 rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary focus:outline-none"
+                className="app-input"
                 placeholder="adres@email.com"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-on-surface-variant mb-1">Hasło</label>
+              <label className="block text-sm font-semibold text-on-surface-variant mb-1">Password</label>
               <input 
                 type="password" 
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface-container border border-white/10 rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary focus:outline-none"
+                className="app-input"
                 placeholder="********"
               />
             </div>
             <button 
               type="submit"
-              className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary-container transition-colors shadow-md shadow-primary/20 mt-2"
+              className="app-button-primary mt-2 w-full"
             >
-              {isRegistering ? 'Zarejestruj się' : 'Zaloguj się'}
+              {isRegistering ? 'Sign up' : 'Log in'}
             </button>
           </form>
 
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px bg-outline-variant/30"></div>
-            <span className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">LUB</span>
+            <span className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">OR</span>
             <div className="flex-1 h-px bg-outline-variant/30"></div>
           </div>
 
@@ -119,7 +139,7 @@ const Login: React.FC = () => {
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={() => {
-                setError('Logowanie przez Google nie powiodło się.');
+                setError('Google login failed.');
               }}
               useOneTap
               theme="filled_black"
@@ -132,9 +152,9 @@ const Login: React.FC = () => {
               setIsRegistering(!isRegistering);
               setError('');
             }}
-            className="text-sm font-semibold text-secondary hover:text-secondary-container transition-colors"
+            className="text-sm font-semibold text-secondary transition-colors hover:text-tertiary-container focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:ring-offset-2 focus:ring-offset-background rounded-lg px-2 py-1"
           >
-            {isRegistering ? 'Masz już konto? Zaloguj się' : 'Nie masz konta? Zarejestruj się'}
+            {isRegistering ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
           </button>
         </div>
       </div>

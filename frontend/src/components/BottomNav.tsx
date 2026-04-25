@@ -6,13 +6,19 @@ const BottomNav: React.FC = () => {
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const navButtonClass = (active: boolean) =>
+    `flex flex-1 flex-col items-center justify-center rounded-2xl px-2 py-2 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-secondary/50 active:scale-95 md:flex-none md:w-full md:px-2 md:py-3 ${
+      active
+        ? 'bg-secondary-container text-secondary shadow-inner ring-1 ring-secondary/25'
+        : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'
+    }`;
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full bg-surface/90 backdrop-blur-2xl shadow-[0_-8px_32px_rgba(0,0,0,0.3)] border-t border-white/5 rounded-t-3xl z-50">
-      <div className="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-surface/95 shadow-[0_-8px_32px_rgba(0,0,0,0.32)] backdrop-blur-2xl md:inset-y-0 md:left-0 md:right-auto md:w-24 md:border-r md:border-t-0 md:shadow-[8px_0_32px_rgba(0,0,0,0.24)]">
+      <div className="mx-auto flex w-full max-w-md items-center justify-around gap-1 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 md:h-full md:max-w-none md:flex-col md:justify-center md:gap-3 md:px-3 md:py-6">
         <button 
           onClick={() => navigate('/dashboard')} 
-          className={`flex flex-col items-center justify-center px-4 py-2 transition-all active:scale-90 duration-150 ${isActive('/dashboard') && !isActive('/groups') ? 'bg-secondary-container border border-secondary/10 text-secondary rounded-2xl shadow-inner' : 'text-on-surface-variant hover:text-secondary'}`}
+          className={navButtonClass(isActive('/dashboard') && !isActive('/groups'))}
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive('/dashboard') && !isActive('/groups') ? "'FILL' 1" : "'FILL' 0" }}>home</span>
           <span className="font-label text-[10px] font-bold uppercase tracking-widest mt-1">Home</span>
@@ -20,7 +26,7 @@ const BottomNav: React.FC = () => {
         
         <button 
           onClick={() => navigate('/groups')} 
-          className={`flex flex-col items-center justify-center px-4 py-2 transition-all active:scale-90 duration-150 ${isActive('/groups') ? 'bg-secondary-container border border-secondary/10 text-secondary rounded-2xl shadow-inner' : 'text-on-surface-variant hover:text-secondary'}`}
+          className={navButtonClass(isActive('/groups'))}
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive('/groups') ? "'FILL' 1" : "'FILL' 0" }}>group</span>
           <span className="font-label text-[10px] font-medium uppercase tracking-widest mt-1">Groups</span>
@@ -29,7 +35,7 @@ const BottomNav: React.FC = () => {
         <button 
           onClick={() => {
             // If we are in a group, go to add expense, else go to dashboard to add group
-            const match = location.pathname.match(/\/groups\/([^\/]+)/);
+            const match = location.pathname.match(/\/groups\/([^/]+)/);
             if (match) {
               navigate(`/groups/${match[1]}/add-expense`);
             } else {
@@ -37,7 +43,7 @@ const BottomNav: React.FC = () => {
               navigate('/dashboard#new-group');
             }
           }}
-          className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-2 hover:text-secondary active:scale-90 transition-all duration-150 cursor-pointer"
+          className="flex flex-1 flex-col items-center justify-center rounded-2xl px-2 py-2 text-on-surface-variant transition-all duration-150 hover:bg-white/5 hover:text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 active:scale-95 md:w-full md:flex-none md:px-2 md:py-3"
         >
           <span className="material-symbols-outlined text-3xl text-tertiary drop-shadow-sm" style={{ fontVariationSettings: "'FILL' 1" }}>add_circle</span>
           <span className="font-label text-[10px] font-medium uppercase tracking-widest mt-1 text-tertiary">Add</span>
@@ -45,7 +51,7 @@ const BottomNav: React.FC = () => {
         
         <button 
           onClick={() => navigate('/activity')}
-          className={`flex flex-col items-center justify-center px-4 py-2 transition-all active:scale-90 duration-150 ${isActive('/activity') ? 'bg-secondary-container border border-secondary/10 text-secondary rounded-2xl shadow-inner' : 'text-on-surface-variant hover:text-secondary'}`}
+          className={navButtonClass(isActive('/activity'))}
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive('/activity') ? "'FILL' 1" : "'FILL' 0" }}>notifications</span>
           <span className="font-label text-[10px] font-medium uppercase tracking-widest mt-1">Activity</span>
@@ -53,7 +59,7 @@ const BottomNav: React.FC = () => {
         
         <button 
           onClick={() => navigate('/profile')}
-          className={`flex flex-col items-center justify-center px-4 py-2 transition-all active:scale-90 duration-150 ${isActive('/profile') ? 'bg-secondary-container border border-secondary/10 text-secondary rounded-2xl shadow-inner' : 'text-on-surface-variant hover:text-secondary'}`}
+          className={navButtonClass(isActive('/profile'))}
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive('/profile') ? "'FILL' 1" : "'FILL' 0" }}>person</span>
           <span className="font-label text-[10px] font-medium uppercase tracking-widest mt-1">Profile</span>
