@@ -14,6 +14,7 @@ public class ExpenseDetailsDto
     public Guid PayerId { get; set; }
     public string Title { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
+    public string Currency { get; set; } = string.Empty;
     public string SplitMethod { get; set; } = string.Empty;
     public bool IsSettlement { get; set; }
     public List<ExpenseSplitDto> Splits { get; set; } = new();

@@ -32,12 +32,12 @@ public class LoginUserCommandHandler : IRequestHandler<LoginUserCommand, AuthRes
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
         if (user == null || string.IsNullOrEmpty(user.PasswordHash))
         {
-            throw new UnauthorizedAccessException("Invalid email or password.");
+            throw new UnauthorizedAccessException("auth.invalidCredentials");
         }
 
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
-            throw new UnauthorizedAccessException("Invalid email or password.");
+            throw new UnauthorizedAccessException("auth.invalidCredentials");
         }
 
         var token = GenerateJwtToken(user);
@@ -46,7 +46,10 @@ public class LoginUserCommandHandler : IRequestHandler<LoginUserCommand, AuthRes
         {
             Id = user.Id,
             Email = user.Email,
-            Name = user.Name
+            Name = user.Name,
+            AvatarKey = user.AvatarKey,
+            Bio = user.Bio,
+            HasPassword = !string.IsNullOrEmpty(user.PasswordHash)
         });
     }
 

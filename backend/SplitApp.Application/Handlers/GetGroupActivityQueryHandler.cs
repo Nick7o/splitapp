@@ -4,6 +4,7 @@ using SplitApp.Application.Queries;
 using SplitApp.Domain.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,15 +30,34 @@ public class GetGroupActivityQueryHandler : IRequestHandler<GetGroupActivityQuer
             .Include(a => a.User)
             .Where(a => a.GroupId == request.GroupId)
             .OrderByDescending(a => a.CreatedAt)
-            .Select(a => new ActivityLogDto
-            {
-                Id = a.Id,
-                Content = a.Content,
-                CreatedAt = a.CreatedAt,
-                UserName = a.User.Name
-            })
             .ToListAsync(cancellationToken);
 
-        return logs;
+        return logs.Select(a => new ActivityLogDto
+        {
+            Id = a.Id,
+            ActivityType = a.ActivityType,
+            Metadata = TryParseMetadata(a.MetadataJson),
+            Content = a.Content,
+            CreatedAt = a.CreatedAt,
+            UserName = a.User.Name
+        }).ToList();
+    }
+
+    private static JsonElement? TryParseMetadata(string? metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(metadataJson);
+            return doc.RootElement.Clone();
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

@@ -38,6 +38,7 @@ public class GetExpenseQueryHandler : IRequestHandler<GetExpenseQuery, ExpenseDe
             PayerId = expense.PayerId,
             Title = expense.Title,
             TotalAmount = expense.TotalAmount,
+            Currency = expense.Currency,
             SplitMethod = expense.SplitMethod,
             IsSettlement = expense.IsSettlement,
             Splits = expense.Splits.Select(s => new ExpenseSplitDto(s.UserId, s.OwedAmount)).ToList()

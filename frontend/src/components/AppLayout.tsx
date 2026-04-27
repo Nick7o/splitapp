@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import BottomNav from './BottomNav';
 
 interface AppLayoutProps {
@@ -24,6 +25,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   showBottomNav = true,
 }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const canGoBack = Boolean(backTo || onBack);
 
   const handleBack = () => {
@@ -46,7 +48,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
               <button
                 onClick={handleBack}
                 className="app-icon-button shrink-0"
-                aria-label="Go back"
+                aria-label={t('layout.goBack')}
               >
                 <span className="material-symbols-outlined">arrow_back</span>
               </button>

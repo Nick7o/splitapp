@@ -33,6 +33,19 @@ public class DebtOptimizationService
 
         return transfers;
     }
+
+    public Dictionary<string, List<DebtTransfer>> OptimizeDebts(
+        IEnumerable<(string Currency, Dictionary<Guid, decimal> Balances)> byCurrency)
+    {
+        var optimized = new Dictionary<string, List<DebtTransfer>>(StringComparer.Ordinal);
+
+        foreach (var (currency, balances) in byCurrency)
+        {
+            optimized[currency] = OptimizeDebts(balances);
+        }
+
+        return optimized;
+    }
 }
 
 public record DebtTransfer(Guid FromUserId, Guid ToUserId, decimal Amount);

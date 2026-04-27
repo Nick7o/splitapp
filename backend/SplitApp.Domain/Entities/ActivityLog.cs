@@ -9,6 +9,8 @@ public class ActivityLog
     public Group? Group { get; set; }
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
+    public string ActivityType { get; set; } = "legacy";
+    public string? MetadataJson { get; set; }
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

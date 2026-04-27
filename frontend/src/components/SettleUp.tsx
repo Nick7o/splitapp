@@ -1,10 +1,14 @@
-import React, { useMemo } from 'react';
-import api from '../api';
+import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AVATAR_BY_KEY } from '../data/avatars';
+import { formatMoney } from '../data/currencies';
+import RecordGroupPaymentDialog from './Payments/RecordGroupPaymentDialog';
 
 interface User {
   id: string;
   name: string;
   email: string;
+  avatarKey?: string | null;
 }
 
 interface RawDebtTransfer {
@@ -16,159 +20,191 @@ interface RawDebtTransfer {
 interface DebtTransfer extends RawDebtTransfer {
   fromName: string;
   toName: string;
-  fromAvatar: string;
-  toAvatar: string;
+  fromAvatarKey?: string | null;
+  toAvatarKey?: string | null;
+}
+
+interface SelectedPayment {
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+  currency: string;
 }
 
 interface SettleUpProps {
   groupId: string;
-  debts: RawDebtTransfer[];
+  debtsByCurrency: Record<string, RawDebtTransfer[]>;
   members: User[];
-  currency: string;
+  onChanged?: () => void | Promise<void>;
 }
 
-const SettleUp: React.FC<SettleUpProps> = ({ groupId, debts, members, currency }) => {
-  const transfers = useMemo(() => {
-    return debts.map(debt => {
-      const fromUser = members.find(m => m.id === debt.fromUserId);
-      const toUser = members.find(m => m.id === debt.toUserId);
-      return {
-        ...debt,
-        fromName: fromUser ? fromUser.name : 'Unknown',
-        toName: toUser ? toUser.name : 'Unknown',
-        fromAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fromUser?.name || 'U')}&background=random`,
-        toAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(toUser?.name || 'U')}&background=random`,
-      };
-    });
-  }, [debts, members]);
+const avatarClassName = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-container text-base font-bold text-on-surface';
 
-  const handleSettle = async (transfer: DebtTransfer) => {
-    try {
-      await api.post('/expenses', {
-        groupId: groupId,
-        payerId: transfer.fromUserId,
-        title: 'Settlement',
-        totalAmount: transfer.amount,
-        splits: [
-          {
-            userId: transfer.toUserId,
-            owedAmount: transfer.amount
-          }
-        ]
-      });
-      alert('Settlement was saved successfully!');
-      window.location.reload(); // Simple way to refresh group data
-    } catch (error) {
-      console.error('Failed to settle', error);
-      alert('An error occurred while saving the settlement.');
-    }
+const getInitials = (name: string) => {
+  const initials = name
+    .split(' ')
+    .map((part) => part.trim().charAt(0))
+    .filter(Boolean)
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || '?';
+};
+
+const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, onChanged }) => {
+  const { t } = useTranslation();
+  const [selectedPayment, setSelectedPayment] = useState<SelectedPayment | null>(null);
+
+  const membersById = useMemo(() => {
+    return new Map(members.map((member) => [member.id, member]));
+  }, [members]);
+
+  const transferSections = useMemo(() => {
+    return Object.entries(debtsByCurrency)
+      .map(([currency, debts]) => ({
+        currency,
+        transfers: debts.map((debt) => {
+          const fromUser = membersById.get(debt.fromUserId);
+          const toUser = membersById.get(debt.toUserId);
+
+          return {
+            ...debt,
+            fromName: fromUser?.name ?? t('common.unknown'),
+            toName: toUser?.name ?? t('common.unknown'),
+            fromAvatarKey: fromUser?.avatarKey,
+            toAvatarKey: toUser?.avatarKey,
+          };
+        }),
+      }))
+      .filter((section) => section.transfers.length > 0);
+  }, [debtsByCurrency, membersById, t]);
+
+  const allTransfers = transferSections.flatMap((section) => section.transfers);
+  const totalsByCurrency = transferSections.map((section) => ({
+    currency: section.currency,
+    total: section.transfers.reduce((sum, transfer) => sum + transfer.amount, 0),
+  }));
+
+  const handleRecorded = async () => {
+    await onChanged?.();
   };
 
-  return (
-    <div className="space-y-10">
-      {/* Hero Section: The Optimization Insight */}
-      <section className="mb-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="max-w-2xl">
-            <span className="font-label text-xs font-semibold uppercase tracking-[0.2em] text-secondary mb-3 block">Smart Settlement</span>
-            <h2 className="mb-4 font-headline text-3xl font-extrabold leading-tight tracking-tight text-on-surface sm:text-4xl lg:text-5xl">
-              Debt <span className="text-secondary italic">Simplified.</span>
-            </h2>
-            <p className="max-w-xl text-base font-medium leading-relaxed text-on-surface-variant sm:text-lg">
-              We've analyzed complex IOUs across the group and condensed them into just {transfers.length} direct transfers using graph-based pathfinding.
+  const renderAvatar = (name: string, avatarKey?: string | null) => {
+    const avatar = avatarKey ? AVATAR_BY_KEY[avatarKey] : null;
+
+    return (
+      <span className={`${avatarClassName} ${avatar?.bg ?? ''}`}>
+        {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : getInitials(name)}
+      </span>
+    );
+  };
+
+  const renderTransfer = (transfer: DebtTransfer, currency: string, index: number) => (
+    <div
+      key={`${currency}-${transfer.fromUserId}-${transfer.toUserId}-${index}`}
+      className="rounded-xl border border-white/10 bg-surface-container-lowest p-4 transition-colors hover:bg-surface-container-low"
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex shrink-0 items-center">
+            {renderAvatar(transfer.fromName, transfer.fromAvatarKey)}
+            <span className="material-symbols-outlined mx-2 text-base text-on-surface-variant">arrow_forward</span>
+            {renderAvatar(transfer.toName, transfer.toAvatarKey)}
+          </div>
+
+          <div className="min-w-0">
+            <p className="truncate font-headline text-lg font-bold text-on-surface">
+              {t('payments.pays', { from: transfer.fromName, to: transfer.toName })}
+            </p>
+            <p className="mt-0.5 text-sm font-bold text-secondary">
+              {formatMoney(transfer.amount, currency)}
             </p>
           </div>
         </div>
-      </section>
 
-      {/* The Flow Visualization */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Panel: The Instructions */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="app-card-strong p-5 sm:p-6 lg:p-8">
-            <h3 className="mb-6 flex items-center gap-3 font-headline text-2xl font-bold text-on-surface sm:mb-8">
-              <span className="material-symbols-outlined text-secondary">auto_graph</span>
-              Settlement Steps
-            </h3>
-            
-            <div className="space-y-6">
-              {transfers.length === 0 ? (
-                <p className="text-on-surface-variant">Everyone is settled up!</p>
-              ) : (
-                transfers.map((transfer, index) => (
-                  <div key={index} className="app-card flex flex-col items-center justify-between gap-5 p-5 transition-transform duration-300 hover:-translate-y-1 hover:bg-surface-container-low sm:flex-row sm:p-6">
-                    <div className="flex items-center gap-5 w-full">
-                      <div className="relative">
-                        <img className="h-16 w-16 rounded-2xl object-cover shadow-sm" alt={transfer.fromName} src={transfer.fromAvatar} />
-                        <div className="absolute -bottom-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-on-secondary shadow-md">{index + 1}</div>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-headline font-bold text-xl text-on-surface leading-tight">{transfer.fromName} pays {transfer.toName}</p>
-                        <p className="text-sm text-secondary font-bold mt-1">{transfer.amount.toFixed(2)} {currency}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <button 
-                        onClick={() => handleSettle(transfer)}
-                        className="app-button-primary flex-1 sm:flex-none"
-                      >
-                        Pay Now
-                      </button>
-                      <button className="app-icon-button rounded-xl">
-                        <span className="material-symbols-outlined">more_vert</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+        <button
+          type="button"
+          className="app-button-primary w-full py-2 md:w-auto"
+          onClick={() => setSelectedPayment({
+            fromUserId: transfer.fromUserId,
+            toUserId: transfer.toUserId,
+            amount: transfer.amount,
+            currency,
+          })}
+        >
+          <span className="material-symbols-outlined">payments</span>
+          {t('payments.record')}
+        </button>
+      </div>
+    </div>
+  );
 
-            <div className="mt-8 pt-8 border-t border-outline-variant/40">
-              <div className="flex items-start gap-4 rounded-2xl border border-secondary/20 bg-secondary/10 p-5">
-                <span className="material-symbols-outlined text-secondary mt-1">info</span>
-                <div>
-                  <p className="mb-1 text-sm font-bold text-secondary">How this works</p>
-                  <p className="text-sm text-on-surface-variant leading-relaxed">
-                    Our "Path Simplification" algorithm eliminates circular debts. For example, if Ania owes Marcus and Marcus owes Celina, we simply ask Ania to pay Celina directly, saving one transaction.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-label text-xs font-bold uppercase tracking-[0.18em] text-secondary">{t('payments.suggestedEyebrow')}</p>
+          <h2 className="mt-2 font-headline text-2xl font-bold text-on-surface">{t('payments.suggestedTitle')}</h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-on-surface-variant">
+            {t('payments.suggestedSummary', { count: allTransfers.length })}
+          </p>
         </div>
 
-        {/* Right Panel: Visual Summary / Statistics */}
-        <div className="space-y-6">
-          <div className="relative overflow-hidden rounded-3xl bg-primary p-6 text-on-primary shadow-2xl shadow-primary/30 sm:p-8">
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-secondary rounded-full opacity-20 blur-3xl"></div>
-            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-white rounded-full opacity-10 blur-3xl"></div>
-            <div className="relative z-10">
-              <h3 className="font-headline font-bold text-2xl mb-6">Efficiency Report</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-on-primary-container">Total Debt</p>
-                  <p className="text-2xl font-headline font-extrabold tracking-tight">
-                    {transfers.reduce((sum, t) => sum + t.amount, 0).toFixed(0)} {currency}
-                  </p>
-                </div>
-                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-on-primary-container">Optimized</p>
-                  <p className="text-3xl font-headline font-extrabold tracking-tight">{transfers.length}</p>
-                </div>
-              </div>
-              <div className="mt-6 flex items-center justify-between bg-white/5 rounded-2xl p-4 border border-white/10">
-                <div>
-                  <p className="text-xs text-on-primary-container/80">Algorithm Status</p>
-                  <p className="text-lg font-bold text-on-primary-container">Active</p>
-                </div>
-                <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <span className="material-symbols-outlined text-on-primary-container">trending_up</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          {totalsByCurrency.length === 0 ? (
+            <span className="rounded-full border border-outline-variant/30 bg-surface-container px-3 py-1.5 text-sm font-bold text-on-surface-variant">
+              {t('common.settled')}
+            </span>
+          ) : (
+            totalsByCurrency.map((section) => (
+              <span key={section.currency} className="rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-sm font-bold text-secondary">
+                {formatMoney(section.total, section.currency)}
+              </span>
+            ))
+          )}
         </div>
-      </section>
+      </div>
+
+      {allTransfers.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-lowest p-6 text-center text-sm font-medium text-on-surface-variant">
+          {t('payments.allSettled')}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {transferSections.map((section) => (
+            <section key={section.currency} className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-label text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                  {t('payments.inCurrency', { currency: section.currency })}
+                </h3>
+                <span className="text-xs font-bold text-on-surface-variant">
+                  {section.transfers.length === 1
+                    ? t('payments.transferCountOne')
+                    : t('payments.transferCount', { count: section.transfers.length })}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {section.transfers.map((transfer, index) => renderTransfer(transfer, section.currency, index))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {selectedPayment ? (
+        <RecordGroupPaymentDialog
+          groupId={groupId}
+          members={members}
+          initialFromUserId={selectedPayment.fromUserId}
+          initialToUserId={selectedPayment.toUserId}
+          initialAmount={selectedPayment.amount}
+          initialCurrency={selectedPayment.currency}
+          maxAmount={selectedPayment.amount}
+          onClose={() => setSelectedPayment(null)}
+          onRecorded={handleRecorded}
+        />
+      ) : null}
     </div>
   );
 };

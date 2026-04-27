@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SplitApp.Api.Localization;
 using SplitApp.Application.Queries;
 using SplitApp.Application.Commands;
 using System;
@@ -55,6 +57,7 @@ public class ExpensesController : ControllerBase
             payerId,
             request.Title,
             request.TotalAmount,
+            request.Currency,
             request.Splits,
             request.SplitMethod,
             request.IsSettlement);
@@ -66,7 +69,7 @@ public class ExpensesController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { Error = ex.Message });
+            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -84,6 +87,7 @@ public class ExpensesController : ControllerBase
             payerId,
             request.Title,
             request.TotalAmount,
+            request.Currency,
             request.Splits,
             userId,
             request.SplitMethod);
@@ -96,7 +100,7 @@ public class ExpensesController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { Error = ex.Message });
+            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -120,6 +124,7 @@ public class ExpensesController : ControllerBase
         Guid? PayerId,
         string Title,
         decimal TotalAmount,
+        string Currency,
         List<ExpenseSplitDto> Splits,
         string SplitMethod = "equally",
         bool IsSettlement = false);

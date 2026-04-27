@@ -41,7 +41,7 @@ public class AuthenticateGoogleUserCommandHandler : IRequestHandler<Authenticate
         }
         catch (InvalidJwtException)
         {
-            throw new UnauthorizedAccessException("Invalid Google token.");
+            throw new UnauthorizedAccessException("auth.invalidGoogleToken");
         }
 
         // 2. Find or Create User
@@ -67,7 +67,10 @@ public class AuthenticateGoogleUserCommandHandler : IRequestHandler<Authenticate
             {
                 Id = user.Id,
                 Name = user.Name,
-                Email = user.Email
+                Email = user.Email,
+                AvatarKey = user.AvatarKey,
+                Bio = user.Bio,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash)
             }
         );
     }

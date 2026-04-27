@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
+import CurrencyPicker from '../components/CurrencyPicker';
 
 interface User {
   id: string;
@@ -12,7 +14,6 @@ interface User {
 interface GroupDetails {
   id: string;
   name: string;
-  currency: string;
   members: User[];
 }
 
@@ -25,6 +26,8 @@ interface ExpenseDetails {
   totalAmount: number;
   title: string;
   payerId: string;
+  currency?: string;
+  Currency?: string;
   splits: ExpenseSplit[];
 }
 
@@ -32,6 +35,7 @@ interface ApiError {
   response?: {
     data?: {
       Error?: string;
+      detail?: string;
     };
   };
 }
@@ -39,6 +43,7 @@ interface ApiError {
 const AddExpense: React.FC = () => {
   const { id, expenseId } = useParams<{ id: string; expenseId?: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   const [group, setGroup] = useState<GroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +52,8 @@ const AddExpense: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [payerId, setPayerId] = useState<string>('');
+  const [currency, setCurrency] = useState<string>('PLN');
+  const [recentCurrencies, setRecentCurrencies] = useState<string[]>([]);
   
   const [splitMethod, setSplitMethod] = useState<'equally' | 'percent' | 'exact'>('equally');
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
@@ -56,6 +63,18 @@ const AddExpense: React.FC = () => {
   const currentUserId = currentUser.id;
 
   useEffect(() => {
+    const storedRecent = localStorage.getItem('splitapp:recent-currencies');
+    let parsedRecentCurrencies: string[] = [];
+    if (storedRecent) {
+      try {
+        const parsed = JSON.parse(storedRecent) as string[];
+        parsedRecentCurrencies = parsed.filter((item): item is string => typeof item === 'string').slice(0, 5);
+        setRecentCurrencies(parsedRecentCurrencies);
+      } catch {
+        setRecentCurrencies([]);
+      }
+    }
+
     const fetchData = async () => {
       try {
         const groupRes = await api.get(`/groups/${id}`);
@@ -67,6 +86,7 @@ const AddExpense: React.FC = () => {
           setAmount(exp.totalAmount.toString());
           setDescription(exp.title);
           setPayerId(exp.payerId);
+          setCurrency(exp.currency || exp.Currency || parsedRecentCurrencies[0] || 'PLN');
           
           // Determine split method based on data
           // For simplicity, we can default to 'exact' when editing if it's not a perfect equal split
@@ -89,6 +109,7 @@ const AddExpense: React.FC = () => {
           
         } else {
           setPayerId(currentUserId || '');
+          setCurrency(parsedRecentCurrencies[0] || 'PLN');
           // By default, select all members for the split
           const allMemberIds = new Set<string>(groupRes.data.members.map((m: User) => m.id));
           setSelectedMembers(allMemberIds);
@@ -147,13 +168,13 @@ const AddExpense: React.FC = () => {
 
   const handleSave = async () => {
     if (!group || !amount || !description || !payerId) {
-      alert('Please fill in all required fields.');
+      alert(t('addExpense.requiredFields'));
       return;
     }
 
     const totalAmount = parseFloat(amount);
     if (isNaN(totalAmount) || totalAmount <= 0) {
-      alert('Please enter a valid amount.');
+      alert(t('addExpense.invalidAmount'));
       return;
     }
 
@@ -166,7 +187,7 @@ const AddExpense: React.FC = () => {
     
     // Check if the sum matches total amount (with small tolerance for floating point)
     if (Math.abs(splitsSum - totalAmount) > 0.05) {
-      alert(`Split total (${splitsSum.toFixed(2)}) does not match the full amount (${totalAmount.toFixed(2)}).`);
+      alert(t('addExpense.splitMismatch', { splitTotal: splitsSum.toFixed(2), total: totalAmount.toFixed(2) }));
       return;
     }
 
@@ -177,7 +198,9 @@ const AddExpense: React.FC = () => {
         payerId: payerId,
         title: description,
         totalAmount: totalAmount,
-        splits: splits
+        currency,
+        splits: splits,
+        splitMethod
       };
 
       if (expenseId) {
@@ -185,11 +208,15 @@ const AddExpense: React.FC = () => {
       } else {
         await api.post('/expenses', payload);
       }
+
+      const updatedRecent = [currency, ...recentCurrencies.filter((item) => item !== currency)].slice(0, 5);
+      setRecentCurrencies(updatedRecent);
+      localStorage.setItem('splitapp:recent-currencies', JSON.stringify(updatedRecent));
       navigate(`/groups/${id}`);
     } catch (error: unknown) {
       console.error('Failed to save expense', error);
       const apiError = error as ApiError;
-      alert(apiError.response?.data?.Error || 'An error occurred while saving the expense.');
+      alert(apiError.response?.data?.detail || apiError.response?.data?.Error || t('addExpense.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -197,52 +224,52 @@ const AddExpense: React.FC = () => {
 
   if (loading) {
     return (
-      <AppLayout title="Expense" backTo={`/groups/${id}`} maxWidthClassName="max-w-2xl">
-        <div className="py-20 text-center text-on-surface-variant">Loading...</div>
+      <AppLayout title={t('addExpense.expense')} backTo={`/groups/${id}`} maxWidthClassName="max-w-2xl">
+        <div className="py-20 text-center text-on-surface-variant">{t('common.loading')}</div>
       </AppLayout>
     );
   }
 
   if (!group) {
     return (
-      <AppLayout title="Expense" backTo={`/groups/${id}`} maxWidthClassName="max-w-2xl">
-        <div className="py-20 text-center text-error">Group not found.</div>
+      <AppLayout title={t('addExpense.expense')} backTo={`/groups/${id}`} maxWidthClassName="max-w-2xl">
+        <div className="py-20 text-center text-error">{t('common.groupNotFound')}</div>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout
-      title={expenseId ? 'Edit expense' : 'New expense'}
+      title={expenseId ? t('addExpense.editTitle') : t('addExpense.newTitle')}
       backTo={`/groups/${id}`}
       maxWidthClassName="max-w-2xl"
     >
           <div className="mb-8 flex items-start justify-between gap-4 text-left">
             <div>
               <h1 className="mb-2 text-3xl font-extrabold leading-tight tracking-tight text-on-surface sm:text-4xl">
-                {expenseId ? 'Edit Expense' : 'New Expense'}
+                {expenseId ? t('addExpense.editHeading') : t('addExpense.newHeading')}
               </h1>
               <p className="text-on-surface-variant font-body">
-                {expenseId ? 'Update expense details.' : 'Add a cost and split it between group members.'}
+                {expenseId ? t('addExpense.editSubheading') : t('addExpense.newSubheading')}
               </p>
             </div>
             {expenseId && (
               <button 
                 onClick={async () => {
-                  if (window.confirm('Are you sure you want to delete this expense?')) {
+                  if (window.confirm(t('addExpense.deleteConfirm'))) {
                     try {
                       await api.delete(`/expenses/${expenseId}?groupId=${id}`);
                       navigate(`/groups/${id}`);
                     } catch (error) {
                       console.error('Failed to delete expense', error);
-                      alert('Failed to delete expense.');
+                      alert(t('addExpense.deleteFailed'));
                     }
                   }
                 }}
                 className="flex flex-col items-center rounded-xl p-3 text-error transition-colors hover:bg-error/10 focus:outline-none focus:ring-2 focus:ring-error/60 focus:ring-offset-2 focus:ring-offset-background"
               >
                 <span className="material-symbols-outlined">delete</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider mt-1">Delete</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider mt-1">{t('addExpense.delete')}</span>
               </button>
             )}
           </div>
@@ -255,7 +282,7 @@ const AddExpense: React.FC = () => {
                 
                 {/* Amount Input */}
                 <div className="text-center">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-4">Amount ({group.currency})</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-4">{t('addExpense.amount', { currency })}</label>
                   <div className="relative inline-flex items-center">
                     <input 
                       className="w-full border-none bg-transparent text-center font-headline text-5xl font-extrabold text-secondary placeholder:text-on-surface-variant/50 focus:ring-0" 
@@ -271,19 +298,21 @@ const AddExpense: React.FC = () => {
 
                 {/* Description Input */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">What was this for?</label>
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">{t('addExpense.descriptionLabel')}</label>
                   <input 
                     className="app-input h-14 px-5 font-medium" 
-                    placeholder="e.g. Dinner at an Italian place" 
+                    placeholder={t('addExpense.descriptionPlaceholder')}
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
 
+                <CurrencyPicker value={currency} onChange={setCurrency} label={t('addExpense.currency')} recent={recentCurrencies} />
+
                 {/* Payer Selection */}
                 <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">Who paid?</label>
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1">{t('addExpense.whoPaid')}</label>
                   <div className="flex flex-wrap gap-3">
                     {group.members.map(member => {
                       const isSelected = payerId === member.id;
@@ -295,7 +324,7 @@ const AddExpense: React.FC = () => {
                           className={`flex items-center gap-2 rounded-xl px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-secondary/50 active:scale-95 ${isSelected ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface hover:bg-surface-container-high'}`}
                         >
                           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
-                          <span>{isMe ? 'You' : member.name}</span>
+                          <span>{isMe ? t('common.you') : member.name}</span>
                         </button>
                       );
                     })}
@@ -308,7 +337,7 @@ const AddExpense: React.FC = () => {
           {/* Step 2: Split Method */}
           <section className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-on-surface">Split method</h2>
+              <h2 className="text-xl font-bold text-on-surface">{t('addExpense.splitMethod')}</h2>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <button 
@@ -316,30 +345,30 @@ const AddExpense: React.FC = () => {
                 className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'equally' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">equalizer</span>
-                <span className="text-xs font-bold uppercase tracking-tight">Equal</span>
+                <span className="text-xs font-bold uppercase tracking-tight">{t('addExpense.equal')}</span>
               </button>
               <button 
                 onClick={() => setSplitMethod('percent')}
                 className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'percent' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">percent</span>
-                <span className="text-xs font-bold uppercase tracking-tight">Percent</span>
+                <span className="text-xs font-bold uppercase tracking-tight">{t('addExpense.percent')}</span>
               </button>
               <button 
                 onClick={() => setSplitMethod('exact')}
                 className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'exact' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">payments</span>
-                <span className="text-xs font-bold uppercase tracking-tight">Exact</span>
+                <span className="text-xs font-bold uppercase tracking-tight">{t('addExpense.exact')}</span>
               </button>
             </div>
 
             {/* Split Details List */}
             <div className="app-card space-y-4 p-5 sm:p-6">
               <div className="flex items-center justify-between px-2">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Participants</span>
+                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">{t('addExpense.participants')}</span>
                 {splitMethod === 'equally' && (
-                  <button onClick={selectAllMembers} className="text-xs font-bold text-secondary uppercase tracking-widest hover:text-secondary-container transition-colors">Select all</button>
+                  <button onClick={selectAllMembers} className="text-xs font-bold text-secondary uppercase tracking-widest hover:text-secondary-container transition-colors">{t('addExpense.selectAll')}</button>
                 )}
               </div>
               <div className="space-y-3">
@@ -355,9 +384,9 @@ const AddExpense: React.FC = () => {
                           <span className="material-symbols-outlined">person</span>
                         </div>
                         <div>
-                          <p className="font-bold text-on-surface font-headline">{isMe ? 'You' : member.name}</p>
+                          <p className="font-bold text-on-surface font-headline">{isMe ? t('common.you') : member.name}</p>
                           {splitMethod === 'equally' ? (
-                            <p className="text-xs text-secondary font-medium">{owedAmount.toFixed(2)} {group.currency}</p>
+                            <p className="text-xs text-secondary font-medium">{owedAmount.toFixed(2)} {currency}</p>
                           ) : (
                             <div className="flex items-center mt-2">
                               <input 
@@ -370,7 +399,7 @@ const AddExpense: React.FC = () => {
                                 onChange={(e) => handleCustomSplitChange(member.id, e.target.value)}
                               />
                               <span className="text-xs font-bold text-on-surface-variant ml-3">
-                                {splitMethod === 'percent' ? `% (${owedAmount.toFixed(2)} ${group.currency})` : group.currency}
+                                {splitMethod === 'percent' ? `% (${owedAmount.toFixed(2)} ${currency})` : currency}
                               </span>
                             </div>
                           )}
@@ -399,7 +428,7 @@ const AddExpense: React.FC = () => {
               disabled={submitting}
               className="app-button-primary h-14 w-full text-base"
             >
-              {submitting ? 'Saving...' : 'Save expense'}
+              {submitting ? t('common.saving') : t('addExpense.saveExpense')}
             </button>
           </div>
         </div>

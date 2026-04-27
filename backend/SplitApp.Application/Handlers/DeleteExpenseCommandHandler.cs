@@ -1,11 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using SplitApp.Application.Activity;
 using SplitApp.Application.Commands;
 using SplitApp.Application.Events;
 using SplitApp.Domain.Entities;
 using SplitApp.Domain.Interfaces;
 using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,14 +32,27 @@ public class DeleteExpenseCommandHandler : IRequestHandler<DeleteExpenseCommand,
 
         if (expense == null) return false;
 
+        var before = new ExpenseSnapshot(
+            expense.Title,
+            expense.TotalAmount,
+            expense.Currency,
+            expense.PayerId,
+            expense.Splits
+                .Select(split => new ExpenseSplitDto(split.UserId, split.OwedAmount))
+                .ToList());
+
         _context.ExpenseSplits.RemoveRange(expense.Splits);
         _context.Expenses.Remove(expense);
+
+        var payload = new ExpenseDeletedPayload(expense.Id, before);
 
         var log = new ActivityLog
         {
             GroupId = request.GroupId,
             UserId = request.UserId,
-            Content = $"usunął(ęła) wydatek: {expense.Title}"
+            ActivityType = "expense.deleted",
+            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options),
+            Content = $"deleted expense: {expense.Title}"
         };
         _context.ActivityLogs.Add(log);
 

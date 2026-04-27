@@ -10,6 +10,7 @@ public record UpdateExpenseCommand(
     Guid PayerId,
     string Title,
     decimal TotalAmount,
+    string Currency,
     List<ExpenseSplitDto> Splits,
     Guid UserId,
     string SplitMethod) : IRequest<bool>;

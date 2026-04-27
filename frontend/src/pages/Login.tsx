@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from '@react-oauth/google';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -9,6 +10,9 @@ interface AuthUser {
   id: string;
   name: string;
   email: string;
+  avatarKey?: string | null;
+  bio?: string | null;
+  hasPassword?: boolean;
 }
 
 interface AuthResponse {
@@ -20,12 +24,14 @@ interface ApiError {
   response?: {
     data?: {
       message?: string;
+      detail?: string;
     };
   };
 }
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,7 +59,7 @@ const Login: React.FC = () => {
       handleAuthSuccess(res.data.token, res.data.user);
     } catch (error) {
       console.error('Login failed', error);
-      setError('Google login failed.');
+      setError(t('login.googleFailed'));
     }
   };
 
@@ -72,7 +78,7 @@ const Login: React.FC = () => {
     } catch (err: unknown) {
       console.error('Auth failed', err);
       const apiError = err as ApiError;
-      setError(apiError.response?.data?.message || 'Authentication failed.');
+      setError(apiError.response?.data?.detail || apiError.response?.data?.message || t('login.authFailed'));
     }
   };
 
@@ -80,38 +86,38 @@ const Login: React.FC = () => {
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
         <div className="app-card-strong w-full max-w-md p-6 text-center sm:p-8">
-          <h1 className="mb-2 font-headline text-4xl font-extrabold tracking-tighter text-secondary">SplitApp</h1>
-          <p className="text-on-surface-variant font-body mb-8">Manage group expenses without the stress.</p>
+          <h1 className="mb-2 font-headline text-4xl font-extrabold tracking-tighter text-secondary">{t('app.name')}</h1>
+          <p className="text-on-surface-variant font-body mb-8">{t('login.tagline')}</p>
           
           {error && <div className="mb-4 p-3 bg-error/10 text-error rounded-xl text-sm font-medium">{error}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-4 mb-6 text-left">
             {isRegistering && (
               <div>
-                <label className="block text-sm font-semibold text-on-surface-variant mb-1">Name</label>
+                <label className="block text-sm font-semibold text-on-surface-variant mb-1">{t('login.name')}</label>
                 <input 
                   type="text" 
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="app-input"
-                  placeholder="Your name"
+                  placeholder={t('login.yourName')}
                 />
               </div>
             )}
             <div>
-              <label className="block text-sm font-semibold text-on-surface-variant mb-1">Email</label>
+              <label className="block text-sm font-semibold text-on-surface-variant mb-1">{t('login.email')}</label>
               <input 
                 type="email" 
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="app-input"
-                placeholder="adres@email.com"
+                placeholder={t('login.emailPlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-on-surface-variant mb-1">Password</label>
+              <label className="block text-sm font-semibold text-on-surface-variant mb-1">{t('login.password')}</label>
               <input 
                 type="password" 
                 required
@@ -125,13 +131,13 @@ const Login: React.FC = () => {
               type="submit"
               className="app-button-primary mt-2 w-full"
             >
-              {isRegistering ? 'Sign up' : 'Log in'}
+              {isRegistering ? t('login.signUp') : t('login.logIn')}
             </button>
           </form>
 
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px bg-outline-variant/30"></div>
-            <span className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">OR</span>
+            <span className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">{t('login.or')}</span>
             <div className="flex-1 h-px bg-outline-variant/30"></div>
           </div>
 
@@ -139,7 +145,7 @@ const Login: React.FC = () => {
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={() => {
-                setError('Google login failed.');
+                setError(t('login.googleFailed'));
               }}
               useOneTap
               theme="filled_black"
@@ -154,7 +160,7 @@ const Login: React.FC = () => {
             }}
             className="text-sm font-semibold text-secondary transition-colors hover:text-tertiary-container focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:ring-offset-2 focus:ring-offset-background rounded-lg px-2 py-1"
           >
-            {isRegistering ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
+            {isRegistering ? t('login.alreadyHave') : t('login.dontHave')}
           </button>
         </div>
       </div>

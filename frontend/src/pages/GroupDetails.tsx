@@ -1,23 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import * as signalR from '@microsoft/signalr';
-import SettleUp from '../components/SettleUp';
 import AppLayout from '../components/AppLayout';
-import api from '../api';
+import BalancePill from '../components/BalancePill';
+import BalancesTab from '../components/BalancesTab';
+import PaymentsTab from '../components/Payments/PaymentsTab';
+import api, { API_ORIGIN } from '../api';
+import { formatMoney } from '../data/currencies';
+import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
 
 interface User {
   id: string;
   name: string;
   email: string;
+  avatarKey?: string | null;
+  bio?: string | null;
 }
 
 interface Expense {
   id: string;
   title: string;
   totalAmount: number;
+  currency: string;
   payerId: string;
   createdAt: string;
   myShare: number;
+}
+
+interface RawExpense extends Omit<Expense, 'currency'> {
+  currency?: string;
+  Currency?: string;
+}
+
+interface RawGroupDetails extends Omit<GroupDetails, 'expenses' | 'myBalanceByCurrency' | 'balancesByCurrency' | 'optimizedDebtsByCurrency'> {
+  avatarKey?: string | null;
+  AvatarKey?: string | null;
+  description?: string | null;
+  Description?: string | null;
+  expenses: RawExpense[];
+  Expenses?: RawExpense[];
+  myBalanceByCurrency?: Record<string, number>;
+  MyBalanceByCurrency?: Record<string, number>;
+  balancesByCurrency?: Record<string, Record<string, number>>;
+  BalancesByCurrency?: Record<string, Record<string, number>>;
+  optimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
+  OptimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
 }
 
 interface DebtTransfer {
@@ -29,115 +57,186 @@ interface DebtTransfer {
 interface GroupDetails {
   id: string;
   name: string;
-  currency: string;
+  avatarKey?: string | null;
+  description?: string | null;
+  currency?: string;
   ownerId: string;
   myBalance: number;
+  myBalanceByCurrency?: Record<string, number>;
+  balancesByCurrency?: Record<string, Record<string, number>>;
   members: User[];
   expenses: Expense[];
   optimizedDebts: DebtTransfer[];
+  optimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
 }
+
+const normalizeGroupDetails = (raw: RawGroupDetails): GroupDetails => {
+  const rawExpenses = raw.expenses ?? raw.Expenses ?? [];
+
+  return {
+    ...raw,
+    avatarKey: raw.avatarKey ?? raw.AvatarKey ?? null,
+    description: raw.description ?? raw.Description ?? null,
+    myBalanceByCurrency: raw.myBalanceByCurrency ?? raw.MyBalanceByCurrency ?? {},
+    balancesByCurrency: raw.balancesByCurrency ?? raw.BalancesByCurrency ?? {},
+    optimizedDebtsByCurrency: raw.optimizedDebtsByCurrency ?? raw.OptimizedDebtsByCurrency ?? {},
+    expenses: rawExpenses.map((expense) => ({
+      ...expense,
+      currency: expense.currency ?? expense.Currency ?? 'PLN'
+    }))
+  };
+};
+
+const isExpectedSignalRStartAbort = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return message.includes('stopped during negotiation')
+    || message.includes('AbortError')
+    || message.includes('The connection was stopped');
+};
 
 const GroupDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'payments'>('expenses');
   const [group, setGroup] = useState<GroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [settlementsRefreshKey, setSettlementsRefreshKey] = useState(0);
+
+  const fetchGroupDetails = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      const response = await api.get(`/groups/${id}`);
+      setGroup(normalizeGroupDetails(response.data));
+    } catch (error) {
+      console.error('Failed to fetch group details', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    const fetchGroupDetails = async () => {
-      try {
-        const response = await api.get(`/groups/${id}`);
-        setGroup(response.data);
-      } catch (error) {
-        console.error('Failed to fetch group details', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchGroupDetails();
+  }, [fetchGroupDetails]);
 
-    if (id) {
-      fetchGroupDetails();
-    }
-
-    // SignalR Connection
+  useEffect(() => {
     let connection: signalR.HubConnection | null = null;
+    let cancelled = false;
 
     const setupSignalR = async () => {
       if (!id) return;
 
       connection = new signalR.HubConnectionBuilder()
-        .withUrl('http://localhost:5223/hubs/expense') // TODO: use env variable
+        .withUrl(`${API_ORIGIN}/hubs/expense`)
         .withAutomaticReconnect()
         .build();
 
-      connection.on('ExpenseAdded', (expenseId: string) => {
-        console.log('New expense added:', expenseId);
-        // Refresh group details when a new expense is added
+      connection.on('ExpenseAdded', () => {
         fetchGroupDetails();
+      });
+
+      connection.on('SettlementUpdated', () => {
+        fetchGroupDetails();
+        setSettlementsRefreshKey((key) => key + 1);
       });
 
       try {
         await connection.start();
+        if (cancelled) {
+          await connection.stop();
+          return;
+        }
+
         await connection.invoke('JoinGroup', id);
-        console.log('Connected to SignalR hub for group', id);
       } catch (err) {
-        console.error('SignalR Connection Error: ', err);
+        if (!cancelled && !isExpectedSignalRStartAbort(err)) {
+          console.error('SignalR Connection Error: ', err);
+        }
       }
     };
 
     setupSignalR();
 
     return () => {
+      cancelled = true;
       if (connection) {
-        if (id) {
+        if (id && connection.state === signalR.HubConnectionState.Connected) {
           connection.invoke('LeaveGroup', id).catch(console.error);
         }
-        connection.stop();
+        connection.stop().catch(console.error);
       }
     };
-  }, [id]);
+  }, [fetchGroupDetails, id]);
+
+  const handleSettlementChanged = useCallback(async () => {
+    await fetchGroupDetails();
+    setSettlementsRefreshKey((key) => key + 1);
+  }, [fetchGroupDetails]);
 
   if (loading) {
     return (
-      <AppLayout title="Group" backTo="/dashboard">
-        <div className="py-20 text-center text-on-surface-variant">Loading...</div>
+      <AppLayout title={t('groupDetails.titleFallback')} backTo="/dashboard">
+        <div className="py-20 text-center text-on-surface-variant">{t('common.loading')}</div>
       </AppLayout>
     );
   }
 
   if (!group) {
     return (
-      <AppLayout title="Group" backTo="/dashboard">
-        <div className="py-20 text-center text-error">Group not found</div>
+      <AppLayout title={t('groupDetails.titleFallback')} backTo="/dashboard">
+        <div className="py-20 text-center text-error">{t('groupDetails.notFound')}</div>
       </AppLayout>
     );
   }
 
   const getPayerName = (payerId: string) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (payerId === user.id) return 'me';
+    if (payerId === user.id) return t('common.me');
     const member = group.members.find(m => m.id === payerId);
-    return member ? member.name : 'Unknown';
+    return member ? member.name : t('common.unknown');
   };
+
+  const balanceEntries = Object.entries(group.myBalanceByCurrency ?? {});
+  const visibleBalanceEntries = balanceEntries.filter(([, amount]) => Math.abs(amount) > 0.0001);
+  const groupAvatar = group.avatarKey ? GROUP_AVATAR_BY_KEY[group.avatarKey] : null;
+  const currentUserId = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}').id ?? '';
+    } catch {
+      return '';
+    }
+  })();
 
   return (
     <AppLayout
-      title={group.name}
+      title={(
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-container text-base">
+            {groupAvatar ? (
+              <span aria-hidden="true">{groupAvatar.emoji}</span>
+            ) : (
+              <span className="material-symbols-outlined text-base text-on-surface-variant">group</span>
+            )}
+          </span>
+          <span className="truncate">{group.name}</span>
+        </span>
+      )}
       backTo="/dashboard"
       actions={(
         <>
           <button
             onClick={() => navigate(`/groups/${id}/activity`)}
             className="app-icon-button"
-            title="Activity history"
+            title={t('groupDetails.activityHistory')}
           >
             <span className="material-symbols-outlined">history</span>
           </button>
           <button
-            onClick={() => alert('Group settings are under construction')}
+            onClick={() => navigate(`/groups/${id}/settings`)}
             className="app-icon-button"
-            aria-label="Group settings"
+            aria-label={t('groupDetails.settings')}
           >
             <span className="material-symbols-outlined">settings</span>
           </button>
@@ -153,22 +252,45 @@ const GroupDetailsPage: React.FC = () => {
             
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10">
               <div>
-                <p className="mb-2 font-label text-sm font-medium uppercase tracking-widest text-on-primary-container">My Balance</p>
-                <h2 className="mb-1 font-headline text-4xl font-extrabold tracking-tight text-on-primary sm:text-5xl">
-                  {group.myBalance > 0 ? '+' : ''}{group.myBalance.toFixed(2)} {group.currency}
-                </h2>
+                <div className="mb-5 flex items-start gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl shadow-inner">
+                    {groupAvatar ? (
+                      <span aria-hidden="true">{groupAvatar.emoji}</span>
+                    ) : (
+                      <span className="material-symbols-outlined text-on-primary-container">group</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-headline text-2xl font-bold text-on-primary">{group.name}</p>
+                    {group.description ? (
+                      <p className="mt-1 max-w-xl text-sm font-medium text-on-primary-container">{group.description}</p>
+                    ) : null}
+                  </div>
+                </div>
+                <p className="mb-2 font-label text-sm font-medium uppercase tracking-widest text-on-primary-container">{t('groupDetails.myBalance')}</p>
+                {visibleBalanceEntries.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {visibleBalanceEntries.map(([currency, amount]) => (
+                      <div key={currency}>
+                        <BalancePill amount={amount} currency={currency} size="lg" onDark />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <BalancePill label={t('common.settled')} size="lg" onDark />
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-on-primary-container">
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
-                  <span className="font-label text-sm font-semibold tracking-wide">{group.members.length} Participants</span>
+                  <span className="font-label text-sm font-semibold tracking-wide">{t('groupDetails.participants', { count: group.members.length })}</span>
                   <button 
                     onClick={() => {
                       const inviteLink = `${window.location.origin}/groups/${group.id}/join`;
                       navigator.clipboard.writeText(inviteLink);
-                      alert('Invite link copied to clipboard!');
+                      alert(t('groupDetails.inviteCopied'));
                     }}
                     className="ml-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 sm:ml-4"
                   >
-                    Copy invite link
+                    {t('groupDetails.copyInvite')}
                   </button>
                 </div>
               </div>
@@ -178,14 +300,14 @@ const GroupDetailsPage: React.FC = () => {
                   className="app-button-primary bg-secondary text-on-secondary hover:bg-tertiary"
                 >
                   <span className="material-symbols-outlined">add</span>
-                  Add Expense
+                  {t('groupDetails.addExpense')}
                 </button>
                 <button 
-                  onClick={() => setActiveTab('balances')}
+                  onClick={() => setActiveTab('payments')}
                   className="app-button-secondary"
                 >
                   <span className="material-symbols-outlined text-tertiary">payments</span>
-                  Settle Up
+                  {t('groupDetails.settleUp')}
                 </button>
               </div>
             </div>
@@ -194,19 +316,26 @@ const GroupDetailsPage: React.FC = () => {
 
         {/* Dynamic Tabs */}
         <div className="flex gap-8 mb-8 border-b border-outline-variant/30">
-          <button 
+          <button
             onClick={() => setActiveTab('expenses')}
             className="relative py-2 group"
           >
-            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'expenses' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>Expenses</span>
+            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'expenses' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>{t('groupDetails.expenses')}</span>
             {activeTab === 'expenses' && <div className="absolute bottom-[-1px] left-0 w-full h-1 bg-tertiary rounded-t-full"></div>}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('balances')}
             className="relative py-2 group"
           >
-            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'balances' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>Balances</span>
+            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'balances' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>{t('groupDetails.balances')}</span>
             {activeTab === 'balances' && <div className="absolute bottom-[-1px] left-0 w-full h-1 bg-tertiary rounded-t-full"></div>}
+          </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className="relative py-2 group"
+          >
+            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'payments' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>{t('payments.tab')}</span>
+            {activeTab === 'payments' && <div className="absolute bottom-[-1px] left-0 w-full h-1 bg-tertiary rounded-t-full"></div>}
           </button>
         </div>
 
@@ -214,14 +343,14 @@ const GroupDetailsPage: React.FC = () => {
         {activeTab === 'expenses' ? (
           <div className="space-y-10">
             <div>
-              <h3 className="font-label text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-6">All Expenses</h3>
+              <h3 className="font-label text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-6">{t('groupDetails.allExpenses')}</h3>
               <div className="space-y-4">
                 {group.expenses.length === 0 ? (
-                  <p className="text-on-surface-variant">No expenses yet.</p>
+                  <p className="text-on-surface-variant">{t('groupDetails.noExpenses')}</p>
                 ) : (
                   group.expenses.map(expense => {
                     const payerName = getPayerName(expense.payerId);
-                    const isMe = payerName === 'me';
+                    const isMe = payerName === t('common.me');
                     return (
                       <div 
                         key={expense.id} 
@@ -234,16 +363,16 @@ const GroupDetailsPage: React.FC = () => {
                           </div>
                           <div>
                             <h4 className="font-headline font-bold text-on-surface text-lg">{expense.title}</h4>
-                            <p className="font-label text-sm text-on-surface-variant">Paid by <span className={`font-semibold ${isMe ? 'text-secondary' : 'text-tertiary'}`}>{payerName}</span></p>
+                            <p className="font-label text-sm text-on-surface-variant">{t('groupDetails.paidBy')} <span className={`font-semibold ${isMe ? 'text-secondary' : 'text-tertiary'}`}>{payerName}</span></p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <p className="font-headline font-extrabold text-on-surface text-lg">{expense.totalAmount.toFixed(2)} {group.currency}</p>
+                            <p className="font-headline font-extrabold text-on-surface text-lg">{formatMoney(expense.totalAmount, expense.currency)}</p>
                             <p className={`font-label text-xs font-medium uppercase tracking-wider ${isMe ? 'text-secondary' : 'text-error'}`}>
                               {isMe 
-                                ? (expense.totalAmount - expense.myShare > 0 ? `You get ${(expense.totalAmount - expense.myShare).toFixed(2)}` : 'Settled')
-                                : (expense.myShare > 0 ? `You owe ${expense.myShare.toFixed(2)}` : 'Settled')}
+                                ? (expense.totalAmount - expense.myShare > 0 ? t('groupDetails.youGet', { amount: formatMoney(expense.totalAmount - expense.myShare, expense.currency) }) : t('common.settled'))
+                                : (expense.myShare > 0 ? t('groupDetails.youOwe', { amount: formatMoney(expense.myShare, expense.currency) }) : t('common.settled'))}
                             </p>
                           </div>
                           <span className="material-symbols-outlined text-on-surface-variant opacity-50">chevron_right</span>
@@ -255,8 +384,24 @@ const GroupDetailsPage: React.FC = () => {
               </div>
             </div>
           </div>
+        ) : activeTab === 'balances' ? (
+          <BalancesTab
+            groupId={id || ''}
+            members={group.members}
+            balancesByCurrency={group.balancesByCurrency || {}}
+            debtsByCurrency={group.optimizedDebtsByCurrency || {}}
+            currentUserId={currentUserId}
+            fallbackCurrency={group.currency || 'PLN'}
+            onSettlementCreated={handleSettlementChanged}
+          />
         ) : (
-          <SettleUp groupId={id || ''} debts={group.optimizedDebts || []} members={group.members} currency={group.currency} />
+          <PaymentsTab
+            groupId={id || ''}
+            members={group.members}
+            fallbackCurrency={group.currency || 'PLN'}
+            refreshKey={settlementsRefreshKey}
+            onChanged={handleSettlementChanged}
+          />
         )}
       {/* Floating Action Button for Adding Expense (Mobile) */}
       <button 

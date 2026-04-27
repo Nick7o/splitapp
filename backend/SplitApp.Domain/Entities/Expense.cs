@@ -14,6 +14,7 @@ public class Expense
 
     public string Title { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
+    public string Currency { get; set; } = "PLN";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string SplitMethod { get; set; } = "equally";
     public bool IsSettlement { get; set; } = false;

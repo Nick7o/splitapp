@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import SettleUp from '../components/SettleUp';
 import AppLayout from '../components/AppLayout';
@@ -8,6 +9,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  avatarKey?: string | null;
 }
 
 interface DebtTransfer {
@@ -19,52 +21,62 @@ interface DebtTransfer {
 interface GroupDetails {
   id: string;
   name: string;
-  currency: string;
   members: User[];
   optimizedDebts: DebtTransfer[];
+  optimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
+  OptimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
 }
 
 const SettleUpPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { t } = useTranslation();
   const [group, setGroup] = useState<GroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchGroupDetails = async () => {
-      try {
-        const response = await api.get(`/groups/${id}`);
-        setGroup(response.data);
-      } catch (error) {
-        console.error('Failed to fetch group details', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchGroupDetails = useCallback(async () => {
+    if (!id) return;
 
-    if (id) {
-      fetchGroupDetails();
+    try {
+      const response = await api.get(`/groups/${id}`);
+      setGroup({
+        ...response.data,
+        optimizedDebtsByCurrency: response.data.optimizedDebtsByCurrency ?? response.data.OptimizedDebtsByCurrency ?? {}
+      });
+    } catch (error) {
+      console.error('Failed to fetch group details', error);
+    } finally {
+      setLoading(false);
     }
   }, [id]);
 
+  useEffect(() => {
+    fetchGroupDetails();
+  }, [fetchGroupDetails]);
+
   if (loading) {
     return (
-      <AppLayout title="Settlements" backTo={`/groups/${id}`}>
-        <div className="py-20 text-center text-on-surface-variant">Loading...</div>
+      <AppLayout title={t('settleUp.title')} backTo={`/groups/${id}`}>
+        <div className="py-20 text-center text-on-surface-variant">{t('common.loading')}</div>
       </AppLayout>
     );
   }
 
   if (!group) {
     return (
-      <AppLayout title="Settlements" backTo={`/groups/${id}`}>
-        <div className="py-20 text-center text-error">Group not found</div>
+      <AppLayout title={t('settleUp.title')} backTo={`/groups/${id}`}>
+        <div className="py-20 text-center text-error">{t('groupDetails.notFound')}</div>
       </AppLayout>
     );
   }
 
   return (
-    <AppLayout title="Settlements" backTo={`/groups/${id}`}>
-      <SettleUp groupId={id || ''} debts={group.optimizedDebts || []} members={group.members} currency={group.currency} />
+    <AppLayout title={t('settleUp.title')} backTo={`/groups/${id}`}>
+      <SettleUp
+        groupId={id || ''}
+        debtsByCurrency={group.optimizedDebtsByCurrency || {}}
+        members={group.members}
+        onChanged={fetchGroupDetails}
+      />
     </AppLayout>
   );
 };

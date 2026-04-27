@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SplitApp.Api.Localization;
 using SplitApp.Application.Commands;
 using System.Threading.Tasks;
 using System;
@@ -30,7 +32,7 @@ public class AuthController : ControllerBase
         }
         catch (System.UnauthorizedAccessException ex)
         {
-            return Unauthorized(new { message = ex.Message });
+            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status401Unauthorized);
         }
     }
 
@@ -46,7 +48,7 @@ public class AuthController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -62,7 +64,7 @@ public class AuthController : ControllerBase
         }
         catch (System.UnauthorizedAccessException ex)
         {
-            return Unauthorized(new { message = ex.Message });
+            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status401Unauthorized);
         }
     }
 }

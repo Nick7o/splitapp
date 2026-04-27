@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 
@@ -8,6 +9,7 @@ interface ApiError {
     status?: number;
     data?: {
       Error?: string;
+      detail?: string;
     };
   };
 }
@@ -15,6 +17,7 @@ interface ApiError {
 const JoinGroup: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +34,7 @@ const JoinGroup: React.FC = () => {
           localStorage.setItem('redirectAfterLogin', `/groups/${id}/join`);
           navigate('/');
         } else {
-          setError(apiError.response?.data?.Error || 'Failed to join group. The invite link may be invalid.');
+          setError(apiError.response?.data?.detail || apiError.response?.data?.Error || t('joinGroup.failed'));
           setLoading(false);
         }
       }
@@ -40,28 +43,28 @@ const JoinGroup: React.FC = () => {
     if (id) {
       joinGroup();
     }
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   if (loading) {
     return (
-      <AppLayout title="Joining group" maxWidthClassName="max-w-md">
+      <AppLayout title={t('joinGroup.joiningTitle')} maxWidthClassName="max-w-md">
         <div className="py-20 text-center text-on-surface-variant">
-          Joining group...
+          {t('joinGroup.joining')}
         </div>
       </AppLayout>
     );
   }
 
   return (
-    <AppLayout title="Error" maxWidthClassName="max-w-md">
+    <AppLayout title={t('common.errorTitle')} maxWidthClassName="max-w-md">
       <div className="app-card p-6 py-12 text-center">
-      <h1 className="mb-4 font-headline text-3xl font-extrabold text-error">Error</h1>
+      <h1 className="mb-4 font-headline text-3xl font-extrabold text-error">{t('common.errorTitle')}</h1>
       <p className="mb-8 text-on-surface-variant">{error}</p>
       <button 
         onClick={() => navigate('/dashboard')}
         className="app-button-primary"
       >
-        Back to Dashboard
+        {t('joinGroup.backToDashboard')}
       </button>
       </div>
     </AppLayout>

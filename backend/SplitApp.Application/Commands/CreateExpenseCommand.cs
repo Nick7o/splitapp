@@ -9,6 +9,7 @@ public record CreateExpenseCommand(
     Guid PayerId,
     string Title,
     decimal TotalAmount,
+    string Currency,
     List<ExpenseSplitDto> Splits,
     string SplitMethod,
     bool IsSettlement) : IRequest<Guid>;

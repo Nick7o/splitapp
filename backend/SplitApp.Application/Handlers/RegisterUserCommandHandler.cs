@@ -32,7 +32,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
         if (existingUser != null)
         {
-            throw new ArgumentException("User with this email already exists.");
+            throw new ArgumentException("auth.emailExists");
         }
 
         var user = new User
@@ -51,7 +51,10 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         {
             Id = user.Id,
             Email = user.Email,
-            Name = user.Name
+            Name = user.Name,
+            AvatarKey = user.AvatarKey,
+            Bio = user.Bio,
+            HasPassword = !string.IsNullOrEmpty(user.PasswordHash)
         });
     }
 

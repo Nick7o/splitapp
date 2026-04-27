@@ -7,6 +7,8 @@ public class Group
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? AvatarKey { get; set; }
     public string Currency { get; set; } = "PLN";
     public Guid OwnerId { get; set; }
 

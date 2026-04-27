@@ -1,10 +1,13 @@
 using MediatR;
+using SplitApp.Application.Activity;
 using SplitApp.Application.Commands;
+using SplitApp.Application.Currency;
 using SplitApp.Application.Events;
 using SplitApp.Domain.Entities;
 using SplitApp.Domain.Interfaces;
 using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,11 +26,13 @@ public class CreateExpenseCommandHandler : IRequestHandler<CreateExpenseCommand,
 
     public async Task<Guid> Handle(CreateExpenseCommand request, CancellationToken cancellationToken)
     {
+        var currency = IsoCurrencyCodes.Normalize(request.Currency);
+
         // Validation: Ensure total amount matches sum of splits
         var splitsSum = request.Splits.Sum(s => s.OwedAmount);
         if (Math.Abs(splitsSum - request.TotalAmount) > 0.01m)
         {
-            throw new ArgumentException("Sum of splits must equal total amount");
+            throw new ArgumentException("expense.splitSumMismatch");
         }
 
         var expense = new Expense
@@ -36,6 +41,7 @@ public class CreateExpenseCommandHandler : IRequestHandler<CreateExpenseCommand,
             PayerId = request.PayerId,
             Title = request.Title,
             TotalAmount = request.TotalAmount,
+            Currency = currency,
             SplitMethod = request.SplitMethod,
             IsSettlement = request.IsSettlement,
             CreatedAt = DateTime.UtcNow,
@@ -48,11 +54,21 @@ public class CreateExpenseCommandHandler : IRequestHandler<CreateExpenseCommand,
 
         _context.Expenses.Add(expense);
 
+        var payload = new ExpenseCreatedPayload(
+            expense.Id,
+            request.Title,
+            request.TotalAmount,
+            currency,
+            request.PayerId,
+            request.Splits);
+
         var log = new ActivityLog
         {
             GroupId = request.GroupId,
             UserId = request.PayerId,
-            Content = $"dodał(a) wydatek: {request.Title} ({request.TotalAmount})"
+            ActivityType = "expense.created",
+            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options),
+            Content = $"added expense: {request.Title} ({request.TotalAmount} {currency})"
         };
         _context.ActivityLogs.Add(log);
 
