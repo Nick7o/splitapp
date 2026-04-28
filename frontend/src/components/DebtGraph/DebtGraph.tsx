@@ -128,7 +128,7 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
       animated: true,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: '#F59E0B',
+        color: '#F4B85A',
       },
       data: {
         label: formatMoney(debt.amount, currency),
@@ -199,10 +199,10 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
             maxZoom={1.6}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={18} size={1.3} color="rgba(203, 213, 225, 0.22)" />
+            <Background variant={BackgroundVariant.Dots} gap={18} size={1.3} color="rgba(154, 174, 196, 0.2)" />
             <MiniMap
-              nodeColor={(node) => (node.id === currentUserId ? '#F59E0B' : '#334155')}
-              maskColor="rgba(11, 17, 32, 0.72)"
+              nodeColor={(node) => (node.id === currentUserId ? '#99F6E4' : '#22334B')}
+              maskColor="rgba(7, 17, 29, 0.72)"
               pannable
               zoomable
             />

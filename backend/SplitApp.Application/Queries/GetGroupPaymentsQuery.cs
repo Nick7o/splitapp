@@ -5,4 +5,4 @@ using System.Collections.Generic;
 
 namespace SplitApp.Application.Queries;
 
-public record GetGroupPaymentsQuery(Guid GroupId, Guid UserId) : IRequest<List<GroupPaymentDto>>;
+public record GetGroupPaymentsQuery(Guid GroupId, Guid UserId, int Skip, int Take) : IRequest<List<GroupPaymentDto>>;

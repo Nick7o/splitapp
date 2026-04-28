@@ -174,11 +174,11 @@ const Profile: React.FC = () => {
   };
 
   return (
-    <AppLayout title={t('profile.title')} maxWidthClassName="max-w-3xl">
-      <div className="space-y-6">
+    <AppLayout title={t('profile.title')} titleVariant="hidden" maxWidthClassName="max-w-5xl">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)] lg:items-start">
         <form onSubmit={handleProfileSubmit} className="app-card-strong p-5 sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-full text-4xl font-bold text-on-surface shadow-lg ${selectedAvatar?.bg ?? 'bg-primary text-on-primary shadow-primary/20'}`}>
+            <div className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl text-4xl font-bold text-on-surface shadow-lg ${selectedAvatar?.bg ?? 'bg-primary text-on-primary shadow-primary/20'}`}>
               {selectedAvatar ? <span aria-hidden="true">{selectedAvatar.emoji}</span> : previewInitial}
             </div>
             <div className="min-w-0">
@@ -227,10 +227,10 @@ const Profile: React.FC = () => {
                       key={avatar.key}
                       type="button"
                       onClick={() => setAvatarKey(selected ? '' : avatar.key)}
-                      className={`flex aspect-square items-center justify-center rounded-full border text-2xl transition-all focus:outline-none focus:ring-2 focus:ring-secondary/60 ${
+                      className={`flex aspect-square items-center justify-center rounded-2xl border text-2xl transition-all focus:outline-none focus:ring-2 focus:ring-primary-fixed/60 ${
                         selected
-                          ? 'border-secondary bg-secondary-container text-secondary shadow-inner'
-                          : `border-outline-variant/40 ${avatar.bg} hover:border-secondary/60`
+                          ? 'border-primary-fixed/35 bg-primary/16 text-primary-fixed shadow-inner'
+                          : `border-outline-variant/40 ${avatar.bg} hover:border-primary-fixed/60`
                       }`}
                       aria-label={avatar.label}
                       title={avatar.label}
@@ -254,59 +254,59 @@ const Profile: React.FC = () => {
           </div>
         </form>
 
-        <section className="app-card p-5 sm:p-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">{t('profile.language.title')}</h3>
-            </div>
-            <div className="flex rounded-xl border border-white/10 bg-surface-container p-1">
-              {SUPPORTED_LANGUAGES.map((language) => {
-                const selected = i18n.resolvedLanguage === language || i18n.language === language;
-
-                return (
-                  <button
-                    key={language}
-                    type="button"
-                    onClick={() => {
-                      void i18n.changeLanguage(language as SupportedLang);
-                    }}
-                    className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-                      selected
-                        ? 'bg-secondary text-on-secondary'
-                        : 'text-on-surface-variant hover:bg-white/10 hover:text-on-surface'
-                    }`}
-                  >
-                    {t(`profile.language.${language}`)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="app-card p-5 sm:p-8">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-container text-secondary">
-              <span className="material-symbols-outlined">lock</span>
-            </div>
-            <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">{t('profile.password')}</h3>
-              <p className="text-sm text-on-surface-variant">{t('profile.passwordDescription')}</p>
-            </div>
-          </div>
-
-          {hasPassword === true ? (
-            <form onSubmit={handlePasswordSubmit} className="grid gap-4">
+        <aside className="space-y-6">
+          <section className="app-card p-5 sm:p-6">
+            <div className="flex flex-col gap-4">
               <div>
-                <label className="mb-1 block text-sm font-semibold text-on-surface-variant">{t('profile.currentPassword')}</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  className="app-input"
-                />
+                <h3 className="font-headline text-xl font-bold text-on-surface">{t('profile.language.title')}</h3>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-surface-container p-1">
+                {SUPPORTED_LANGUAGES.map((language) => {
+                  const selected = i18n.resolvedLanguage === language || i18n.language === language;
+
+                  return (
+                    <button
+                      key={language}
+                      type="button"
+                      onClick={() => {
+                        void i18n.changeLanguage(language as SupportedLang);
+                      }}
+                      className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
+                        selected
+                          ? 'bg-primary text-on-primary'
+                          : 'text-on-surface-variant hover:bg-white/10 hover:text-on-surface'
+                      }`}
+                    >
+                      {t(`profile.language.${language}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <section className="app-card p-5 sm:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-container text-secondary">
+                <span className="material-symbols-outlined">lock</span>
+              </div>
+              <div>
+                <h3 className="font-headline text-xl font-bold text-on-surface">{t('profile.password')}</h3>
+                <p className="text-sm text-on-surface-variant">{t('profile.passwordDescription')}</p>
+              </div>
+            </div>
+
+            {hasPassword === true ? (
+              <form onSubmit={handlePasswordSubmit} className="grid gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-on-surface-variant">{t('profile.currentPassword')}</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    className="app-input"
+                  />
+                </div>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-on-surface-variant">{t('profile.newPassword')}</label>
                   <input
@@ -325,36 +325,36 @@ const Profile: React.FC = () => {
                     className="app-input"
                   />
                 </div>
+
+                {passwordError ? <div className="rounded-xl bg-error/10 p-3 text-sm font-medium text-error">{passwordError}</div> : null}
+                {passwordSuccess ? <div className="rounded-xl bg-secondary-container p-3 text-sm font-semibold text-secondary">{passwordSuccess}</div> : null}
+
+                <div className="flex justify-end">
+                  <button type="submit" className="app-button-secondary" disabled={passwordSaving}>
+                    <span className="material-symbols-outlined">key</span>
+                    {passwordSaving ? t('profile.updating') : t('profile.updatePassword')}
+                  </button>
+                </div>
+              </form>
+            ) : hasPassword === false ? (
+              <div className="rounded-xl border border-outline-variant/30 bg-surface-container/60 p-4 text-sm font-medium text-on-surface-variant">
+                {t('profile.googlePasswordNote')}
               </div>
-
-              {passwordError ? <div className="rounded-xl bg-error/10 p-3 text-sm font-medium text-error">{passwordError}</div> : null}
-              {passwordSuccess ? <div className="rounded-xl bg-secondary-container p-3 text-sm font-semibold text-secondary">{passwordSuccess}</div> : null}
-
-              <div className="flex justify-end">
-                <button type="submit" className="app-button-secondary" disabled={passwordSaving}>
-                  <span className="material-symbols-outlined">key</span>
-                  {passwordSaving ? t('profile.updating') : t('profile.updatePassword')}
-                </button>
+            ) : (
+              <div className="rounded-xl border border-outline-variant/30 bg-surface-container/60 p-4 text-sm font-medium text-on-surface-variant">
+                {t('profile.loadingPasswordSettings')}
               </div>
-            </form>
-          ) : hasPassword === false ? (
-            <div className="rounded-xl border border-outline-variant/30 bg-surface-container/60 p-4 text-sm font-medium text-on-surface-variant">
-              {t('profile.googlePasswordNote')}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-outline-variant/30 bg-surface-container/60 p-4 text-sm font-medium text-on-surface-variant">
-              {t('profile.loadingPasswordSettings')}
-            </div>
-          )}
-        </section>
+            )}
+          </section>
 
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-error/20 bg-error/10 px-6 py-4 font-body text-base font-bold text-error transition-colors hover:bg-error/20 focus:outline-none focus:ring-2 focus:ring-error/60 focus:ring-offset-2 focus:ring-offset-background"
-        >
-          <span className="material-symbols-outlined">logout</span>
-          {t('profile.logout')}
-        </button>
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-error/20 bg-error/10 px-6 py-4 font-body text-base font-bold text-error transition-colors hover:bg-error/20 focus:outline-none focus:ring-2 focus:ring-error/60 focus:ring-offset-2 focus:ring-offset-background"
+          >
+            <span className="material-symbols-outlined">logout</span>
+            {t('profile.logout')}
+          </button>
+        </aside>
       </div>
     </AppLayout>
   );

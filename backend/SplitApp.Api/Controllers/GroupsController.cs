@@ -104,12 +104,14 @@ public class GroupsController : ControllerBase
     }
 
     [HttpGet("{id}/activity")]
-    public async Task<IActionResult> GetGroupActivity(Guid id)
+    public async Task<IActionResult> GetGroupActivity(Guid id, [FromQuery] int skip = 0, [FromQuery] int take = 50)
     {
         var userId = GetUserId();
         if (userId == Guid.Empty) return Unauthorized();
 
-        var query = new GetGroupActivityQuery(id, userId);
+        var normalizedSkip = Math.Max(0, skip);
+        var normalizedTake = Math.Clamp(take, 1, 100);
+        var query = new GetGroupActivityQuery(id, userId, normalizedSkip, normalizedTake);
         var logs = await _mediator.Send(query);
 
         return Ok(logs);

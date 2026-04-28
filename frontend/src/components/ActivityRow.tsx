@@ -12,6 +12,7 @@ export interface ActivityLog {
   content: string;
   activityType: string;
   metadata: unknown;
+  memberNames?: Record<string, string>;
 }
 
 interface ActivityRowProps {
@@ -62,8 +63,8 @@ interface PaymentPayload {
 
 const toneClasses: Record<ActivityTone, { icon: string; chip: string }> = {
   positive: {
-    icon: 'bg-emerald-400/15 text-emerald-200 ring-emerald-300/20',
-    chip: 'bg-emerald-400/10 text-emerald-100'
+    icon: 'bg-primary/18 text-primary-fixed ring-primary-fixed/25',
+    chip: 'bg-primary/12 text-primary-fixed'
   },
   negative: {
     icon: 'bg-rose-400/15 text-rose-200 ring-rose-300/20',
@@ -189,6 +190,48 @@ const getAmountSummary = (log: ActivityLog): string | null => {
   }
 
   return null;
+};
+
+const getActivityContent = (
+  log: ActivityLog,
+  t: (key: string, values?: Record<string, string>) => string,
+  memberNames?: Record<string, string>
+): string => {
+  if (log.activityType === 'expense.created') {
+    const payload = parseCreatedPayload(log.metadata);
+    return payload
+      ? t('activityContent.expenseCreated', { title: payload.title || t('activityRow.untitledExpense'), amount: money(payload.totalAmount, payload.currency) })
+      : log.content;
+  }
+
+  if (log.activityType === 'expense.updated') {
+    const payload = parseUpdatedPayload(log.metadata);
+    return payload
+      ? t('activityContent.expenseUpdated', { title: payload.after.title || t('activityRow.untitledExpense') })
+      : log.content;
+  }
+
+  if (log.activityType === 'expense.deleted') {
+    const payload = parseDeletedPayload(log.metadata);
+    return payload
+      ? t('activityContent.expenseDeleted', { title: payload.before.title || t('activityRow.untitledExpense') })
+      : log.content;
+  }
+
+  if (log.activityType === 'payment.recorded' || log.activityType === 'payment.voided') {
+    const payload = parsePaymentPayload(log.metadata);
+    if (!payload) return log.content;
+
+    const from = memberLabel(payload.fromUserId, memberNames, t('common.unknown'));
+    const to = memberLabel(payload.toUserId, memberNames, t('common.unknown'));
+    const amount = money(payload.amount, payload.currency);
+
+    return log.activityType === 'payment.recorded'
+      ? t('activityContent.paymentRecorded', { from, to, amount })
+      : t('activityContent.paymentVoided', { from, to, amount });
+  }
+
+  return log.content;
 };
 
 const sameSplits = (left: ExpenseSplit[], right: ExpenseSplit[]): boolean => {
@@ -412,14 +455,19 @@ const ActivityDetails: React.FC<{ log: ActivityLog; memberNames?: Record<string,
 const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, group }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const resolvedMemberNames = memberNames ?? log.memberNames;
   const meta = useMemo(() => getActivityMeta(log.activityType), [log.activityType]);
   const classes = toneClasses[meta.tone];
   const canExpand = Boolean(log.metadata) || log.activityType === 'legacy';
   const amountSummary = useMemo(() => getAmountSummary(log), [log]);
+  const activityContent = useMemo(
+    () => getActivityContent(log, t, resolvedMemberNames),
+    [log, resolvedMemberNames, t]
+  );
 
   return (
     <div className="relative flex items-start gap-4">
-      <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ${classes.icon}`}>
+      <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${classes.icon}`}>
         <span className="material-symbols-outlined text-xl">{meta.icon}</span>
       </div>
       <article className="app-card w-full overflow-hidden p-4">
@@ -427,9 +475,9 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, group }) =>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-bold text-on-surface">{log.userName}</p>
-              <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${classes.chip}`}>{t(meta.labelKey)}</span>
+              <span className={`rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${classes.chip}`}>{t(meta.labelKey)}</span>
               {amountSummary && (
-                <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface">
+                <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface">
                   {amountSummary}
                 </span>
               )}
@@ -443,7 +491,7 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, group }) =>
                 {group.name}
               </Link>
             )}
-            <p className="mt-1 break-words text-sm text-on-surface-variant">{log.content}</p>
+            <p className="mt-1 break-words text-sm text-on-surface-variant">{activityContent}</p>
           </div>
           <time className="shrink-0 font-label text-xs text-on-surface-variant">{formatDateTime(log.createdAt)}</time>
         </div>
@@ -462,7 +510,7 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, group }) =>
 
         {expanded && (
           <div className="mt-4 border-t border-white/10 pt-4">
-            <ActivityDetails log={log} memberNames={memberNames} />
+            <ActivityDetails log={log} memberNames={resolvedMemberNames} />
           </div>
         )}
       </article>

@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace SplitApp.Application.Queries;
 
-public record GetGroupActivityQuery(Guid GroupId, Guid UserId) : IRequest<List<ActivityLogDto>>;
+public record GetGroupActivityQuery(Guid GroupId, Guid UserId, int Skip, int Take) : IRequest<List<ActivityLogDto>>;
 
 public class ActivityLogDto
 {
@@ -15,4 +15,5 @@ public class ActivityLogDto
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public string UserName { get; set; } = string.Empty;
+    public Dictionary<Guid, string> MemberNames { get; set; } = new();
 }

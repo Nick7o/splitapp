@@ -79,9 +79,9 @@ const BalancesTab: React.FC<BalancesTabProps> = ({
                     key={currency}
                     type="button"
                     onClick={() => setPreferredCurrency(currency)}
-                    className={`rounded-xl px-4 py-2 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-secondary/60 ${
+                  className={`rounded-xl px-4 py-2 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-primary-fixed/60 ${
                       selected
-                        ? 'bg-secondary text-on-secondary'
+                        ? 'bg-primary text-on-primary'
                         : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                     }`}
                   >

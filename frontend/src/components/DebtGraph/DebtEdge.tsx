@@ -50,7 +50,7 @@ const DebtEdge: React.FC<EdgeProps<DebtEdgeType>> = ({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: '#F59E0B',
+          stroke: '#F4B85A',
           strokeWidth,
           opacity,
           transition: 'opacity 160ms ease, stroke-width 160ms ease',
@@ -58,7 +58,7 @@ const DebtEdge: React.FC<EdgeProps<DebtEdgeType>> = ({
       />
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan rounded-full border border-white/10 bg-surface px-3 py-1 text-xs font-bold text-on-surface shadow-[0_8px_24px_rgba(0,0,0,0.28)]"
+          className="nodrag nopan rounded-lg border border-white/10 bg-surface px-3 py-1 text-xs font-bold text-on-surface shadow-[0_8px_24px_rgba(2,6,23,0.28)]"
           style={{
             opacity,
             position: 'absolute',

@@ -6,6 +6,7 @@ import AppLayout from '../components/AppLayout';
 import BalancePill from '../components/BalancePill';
 import { useCreateGroupModal } from '../context/CreateGroupModalContext';
 import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
+import { formatRelativeTime } from '../utils/date';
 
 interface Group {
   id: string;
@@ -103,6 +104,8 @@ const Dashboard: React.FC = () => {
     return acc;
   }, {});
   const visibleTotalBalances = Object.entries(totalBalances).filter(([, amount]) => Math.abs(amount) > 0.0001);
+  const currenciesInUse = Object.keys(totalBalances).length;
+  const groupsWithOpenBalances = groups.filter((group) => getVisibleGroupBalances(group).length > 0).length;
 
   return (
     <AppLayout
@@ -117,11 +120,11 @@ const Dashboard: React.FC = () => {
         </button>
       )}
     >
-        {/* Hero Balance Section */}
-        <section className="mb-12">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <section className="mb-6">
+          <div className="app-card-strong overflow-hidden p-5 sm:p-7">
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="font-label text-on-surface-variant font-semibold tracking-wider uppercase text-xs mb-2">{t('dashboard.totalBalance')}</p>
+              <p className="mb-2 font-label text-xs font-semibold uppercase tracking-wider text-on-surface-variant">{t('dashboard.totalBalance')}</p>
               <div className="flex flex-wrap items-center gap-2">
                 {visibleTotalBalances.length > 0 ? (
                   visibleTotalBalances.map(([currency, amount]) => (
@@ -133,46 +136,46 @@ const Dashboard: React.FC = () => {
                   <BalancePill label={t('common.settled')} size="lg" />
                 )}
               </div>
-              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-secondary-container border border-secondary/20 rounded-full">
-                <span className="material-symbols-outlined text-secondary text-sm">check_circle</span>
-                <p className="font-label text-sm font-medium text-secondary">
+              <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-fixed/20 bg-primary/12 px-3 py-2">
+                <span className="material-symbols-outlined text-sm text-primary-fixed">check_circle</span>
+                <p className="font-label text-sm font-medium text-primary-fixed">
                   {visibleTotalBalances.length > 1 ? t('dashboard.totalsSeparated') : t('dashboard.allSettledUp')}
                 </p>
               </div>
             </div>
             
-            {/* Quick Actions */}
             <div className="flex gap-3">
               <button 
                 onClick={openModal}
-                className="app-button-primary"
+                className="app-button-primary w-full md:w-auto"
               >
                 <span className="material-symbols-outlined">add</span>
                 {t('dashboard.newGroup')}
               </button>
             </div>
+            </div>
           </div>
         </section>
 
         {/* Stats Bento Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
+        <section className="mb-8 grid grid-cols-3 gap-3 md:mb-10 md:gap-4">
           <div className="app-card p-5 sm:p-6">
-            <p className="font-label text-xs text-on-surface-variant font-bold uppercase tracking-widest mb-4">{t('dashboard.activeGroups')}</p>
-            <p className="font-headline text-3xl font-bold text-on-surface">{groups.length}</p>
+            <p className="mb-3 font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant sm:text-xs">{t('dashboard.activeGroups')}</p>
+            <p className="font-headline text-2xl font-bold text-on-surface sm:text-3xl">{groups.length}</p>
           </div>
           <div className="app-card p-5 sm:p-6">
-            <p className="font-label text-xs text-on-surface-variant font-bold uppercase tracking-widest mb-4">{t('dashboard.monthlySplit')}</p>
-            <p className="font-headline text-3xl font-bold text-on-surface">—</p>
+            <p className="mb-3 font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant sm:text-xs">{t('dashboard.currencies')}</p>
+            <p className="font-headline text-2xl font-bold text-on-surface sm:text-3xl">{currenciesInUse}</p>
           </div>
           <div className="app-card p-5 sm:p-6">
-            <p className="font-label text-xs text-on-surface-variant font-bold uppercase tracking-widest mb-4">{t('dashboard.savingsInsight')}</p>
-            <p className="font-headline text-3xl font-bold text-secondary">—</p>
+            <p className="mb-3 font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant sm:text-xs">{t('dashboard.openBalances')}</p>
+            <p className="font-headline text-2xl font-bold text-primary-fixed sm:text-3xl">{groupsWithOpenBalances}</p>
           </div>
         </section>
 
         {/* Active Groups Section */}
         <section>
-          <div className="flex items-center justify-between mb-8">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="font-headline text-2xl font-bold tracking-wide text-on-surface sm:text-3xl">{t('dashboard.activeGroups')}</h2>
           </div>
           
@@ -190,10 +193,10 @@ const Dashboard: React.FC = () => {
                   <div 
                     key={group.id} 
                     onClick={() => navigate(`/groups/${group.id}`)}
-                    className="group app-card flex cursor-pointer items-center justify-between p-4 transition-all hover:bg-surface-container-low active:scale-[0.99] sm:p-5"
+                    className="group app-card flex cursor-pointer flex-col gap-4 p-4 transition-all hover:-translate-y-0.5 hover:bg-surface-container-low active:scale-[0.99] sm:p-5 md:flex-row md:items-center md:justify-between"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-surface-container flex items-center justify-center">
+                    <div className="flex w-full min-w-0 items-center gap-4 md:w-auto">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-container">
                         {avatar ? (
                           <span className="text-2xl" aria-hidden="true">{avatar.emoji}</span>
                         ) : group.imageUrl ? (
@@ -202,18 +205,18 @@ const Dashboard: React.FC = () => {
                           <span className="material-symbols-outlined text-on-surface-variant">group</span>
                         )}
                       </div>
-                      <div>
-                        <h3 className="font-headline font-bold text-lg text-on-surface">{group.name}</h3>
-                        <p className="font-label text-sm text-on-surface-variant mt-0.5">
-                          {t('dashboard.members', { count: group.membersCount })} • {t('dashboard.lastActive', { value: group.lastActive })}
+                      <div className="min-w-0">
+                        <h3 className="truncate font-headline text-lg font-bold text-on-surface">{group.name}</h3>
+                        <p className="mt-0.5 truncate font-label text-sm text-on-surface-variant">
+                          {t('dashboard.members', { count: group.membersCount })} • {t('dashboard.lastActive', { value: group.lastActive ? formatRelativeTime(group.lastActive, t('dashboard.noActivity')) : t('dashboard.noActivity') })}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="w-full text-left md:w-auto md:text-right">
                       {getVisibleGroupBalances(group).length === 0 ? (
                         <BalancePill label={t('common.settled')} size="sm" />
                       ) : (
-                        <div className="flex flex-wrap justify-end gap-1.5">
+                        <div className="flex flex-wrap gap-1.5 md:justify-end">
                           {getVisibleGroupBalances(group).map((balance) => (
                             <div
                               key={`${group.id}-${balance.currency}`}
@@ -276,9 +279,9 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Floating Action Button */}
-      <button 
+      <button
         onClick={openModal}
-        className="fixed bottom-28 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-primary text-on-primary shadow-[0_8px_32px_rgba(180,83,9,0.35)] transition-transform active:scale-95 md:right-8"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-primary text-on-primary shadow-[0_10px_30px_rgba(15,118,110,0.28)] transition-transform active:scale-95 md:hidden"
       >
         <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0", fontSize: '28px' }}>add</span>
       </button>

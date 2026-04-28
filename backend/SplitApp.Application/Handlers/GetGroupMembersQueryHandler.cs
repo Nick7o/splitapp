@@ -41,6 +41,7 @@ public class GetGroupMembersQueryHandler : IRequestHandler<GetGroupMembersQuery,
             Name = member.User.Name,
             Email = member.User.Email,
             AvatarKey = member.User.AvatarKey,
+            Bio = member.User.Bio,
             Role = member.Role
         }).ToList();
     }

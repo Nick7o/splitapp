@@ -1,13 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AVATAR_BY_KEY } from '../data/avatars';
 import { formatMoney } from '../data/currencies';
+import MemberProfileDialog from './MemberProfileDialog';
 
 interface Member {
   id: string;
   name: string;
   email: string;
   avatarKey?: string | null;
+  bio?: string | null;
 }
 
 interface BalancesListProps {
@@ -18,7 +20,7 @@ interface BalancesListProps {
 }
 
 const getAmountClassName = (amount: number) => {
-  if (amount > 0.0001) return 'text-emerald-300';
+  if (amount > 0.0001) return 'text-primary-fixed';
   if (amount < -0.0001) return 'text-error';
   return 'text-on-surface-variant';
 };
@@ -30,6 +32,7 @@ const BalancesList: React.FC<BalancesListProps> = ({
   fallbackCurrency,
 }) => {
   const { t } = useTranslation();
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const currencies = useMemo(() => {
     const keys = Object.keys(balancesByCurrency);
     return keys.length > 0 ? keys.sort() : [fallbackCurrency];
@@ -64,17 +67,19 @@ const BalancesList: React.FC<BalancesListProps> = ({
           const isCurrentUser = member.id === currentUserId;
 
           return (
-            <div
+            <button
               key={member.id}
+              type="button"
+              onClick={() => setSelectedMember(member)}
               className={`rounded-xl border p-4 transition-colors ${
                 isCurrentUser
-                  ? 'border-secondary/30 bg-secondary-container/50'
+                  ? 'border-primary-fixed/25 bg-primary/12'
                   : 'border-white/10 bg-surface-container-lowest'
-              }`}
+              } text-left hover:border-primary-fixed/40 hover:bg-surface-container-low`}
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold ${avatar?.bg ?? 'bg-surface-container text-on-surface'}`}>
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${avatar?.bg ?? 'bg-surface-container text-on-surface'}`}>
                     {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : member.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -98,10 +103,21 @@ const BalancesList: React.FC<BalancesListProps> = ({
                   })}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {selectedMember ? (
+        <MemberProfileDialog
+          member={selectedMember}
+          isCurrentUser={selectedMember.id === currentUserId}
+          balancesByCurrency={Object.fromEntries(
+            currencies.map((currency) => [currency, balancesByCurrency[currency]?.[selectedMember.id] ?? 0])
+          )}
+          onClose={() => setSelectedMember(null)}
+        />
+      ) : null}
     </section>
   );
 };

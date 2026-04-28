@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 import CurrencyPicker from '../components/CurrencyPicker';
-import { GROUP_AVATAR_BY_KEY, GROUP_AVATARS } from '../data/groupAvatars';
+import MemberProfileDialog from '../components/MemberProfileDialog';
+import { AVATAR_BY_KEY } from '../data/avatars';
+import { GROUP_AVATARS } from '../data/groupAvatars';
 
 interface GroupDetails {
   id: string;
@@ -20,6 +22,7 @@ interface GroupMember {
   name: string;
   email: string;
   avatarKey?: string | null;
+  bio?: string | null;
   role: number;
 }
 
@@ -38,6 +41,7 @@ const GroupSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
 
   const currentUserId = useMemo(() => {
     try {
@@ -87,6 +91,17 @@ const GroupSettings: React.FC = () => {
     if (member.userId === group?.ownerId) return t('groupSettings.owner');
     if (member.role === 1) return t('groupSettings.admin');
     return t('groupSettings.member');
+  };
+
+  const maskEmail = (value: string): string => {
+    const [localPart, domain] = value.split('@');
+    if (!localPart || !domain) return value;
+
+    const visibleLocal = localPart.length <= 2 ? localPart : `${localPart.slice(0, 2)}...`;
+    const [domainName, ...domainRest] = domain.split('.');
+    const visibleDomain = domainName.length <= 3 ? domainName : `${domainName.slice(0, 3)}...`;
+
+    return `${visibleLocal}@${visibleDomain}${domainRest.length > 0 ? `.${domainRest[domainRest.length - 1]}` : ''}`;
   };
 
   const handleSave = async () => {
@@ -192,16 +207,22 @@ const GroupSettings: React.FC = () => {
           </div>
         )}
         {banner && (
-          <div className="rounded-xl border border-secondary/40 bg-secondary-container p-4 text-sm font-semibold text-secondary">
+          <div className="rounded-xl border border-primary-fixed/30 bg-primary/12 p-4 text-sm font-semibold text-primary-fixed">
             {banner}
           </div>
         )}
+        {!isOwner && (
+          <div className="rounded-xl border border-secondary/30 bg-secondary-container p-4 text-sm font-semibold text-secondary">
+            {t('groupSettings.readOnlyDescription')}
+          </div>
+        )}
 
-        <section className="app-card p-5 sm:p-6">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.78fr)] xl:items-start">
+        <section className={`app-card p-5 sm:p-6 ${!isOwner ? 'opacity-80' : ''}`}>
           <div className="mb-6 flex items-center justify-between">
             <h2 className="font-headline text-2xl font-bold text-on-surface">{t('groupSettings.groupInfo')}</h2>
             {!isOwner && (
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              <span className="rounded-lg bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
                 {t('groupSettings.readOnly')}
               </span>
             )}
@@ -221,8 +242,8 @@ const GroupSettings: React.FC = () => {
                       disabled={!isOwner}
                       className={`rounded-xl border px-2 py-3 text-center transition ${
                         selected
-                          ? 'border-secondary bg-secondary-container'
-                          : 'border-white/10 bg-surface-container-low hover:bg-surface-container'
+                          ? 'border-primary-fixed/35 bg-primary/16'
+                          : 'border-white/10 bg-surface-container-low hover:border-primary-fixed/45 hover:bg-surface-container'
                       } ${!isOwner ? 'cursor-not-allowed opacity-60' : ''}`}
                       title={avatar.label}
                     >
@@ -280,27 +301,32 @@ const GroupSettings: React.FC = () => {
 
           <div className="space-y-3">
             {members.map((member) => {
-              const avatar = member.avatarKey ? GROUP_AVATAR_BY_KEY[member.avatarKey] : null;
+              const avatar = member.avatarKey ? AVATAR_BY_KEY[member.avatarKey] : null;
               const isMemberOwner = member.userId === group.ownerId;
+              const roleLabel = resolveRoleLabel(member);
 
               return (
                 <div key={member.userId} className="rounded-xl border border-white/10 bg-surface-container-low p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container text-lg">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMember(member)}
+                      className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left transition hover:text-primary-fixed focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:w-auto"
+                    >
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-container text-lg">
                         {avatar ? avatar.emoji : member.name.slice(0, 1).toUpperCase()}
                       </div>
-                      <div>
-                        <p className="font-semibold text-on-surface">{member.name}</p>
-                        <p className="text-sm text-on-surface-variant">{member.email}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-on-surface" title={member.name}>{member.name}</p>
+                        <p className="truncate text-sm text-on-surface-variant" title={member.email}>{maskEmail(member.email)}</p>
                       </div>
-                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                        {resolveRoleLabel(member)}
+                      <span className="shrink-0 rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                        {roleLabel}
                       </span>
-                    </div>
+                    </button>
 
                     {isOwner && !isMemberOwner && (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
                         <button
                           type="button"
                           onClick={() => handleRoleToggle(member)}
@@ -335,6 +361,22 @@ const GroupSettings: React.FC = () => {
             </div>
           )}
         </section>
+        </div>
+
+        {selectedMember ? (
+          <MemberProfileDialog
+            member={{
+              id: selectedMember.userId,
+              name: selectedMember.name,
+              email: selectedMember.email,
+              avatarKey: selectedMember.avatarKey,
+              bio: selectedMember.bio,
+              roleLabel: resolveRoleLabel(selectedMember),
+            }}
+            isCurrentUser={selectedMember.userId === currentUserId}
+            onClose={() => setSelectedMember(null)}
+          />
+        ) : null}
       </div>
     </AppLayout>
   );

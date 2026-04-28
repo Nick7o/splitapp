@@ -30,14 +30,16 @@ public class PaymentsController : ControllerBase
     }
 
     [HttpGet("api/groups/{groupId}/payments")]
-    public async Task<IActionResult> GetGroupPayments(Guid groupId)
+    public async Task<IActionResult> GetGroupPayments(Guid groupId, [FromQuery] int skip = 0, [FromQuery] int take = 50)
     {
         var userId = GetUserId();
         if (userId == Guid.Empty) return Unauthorized();
 
         try
         {
-            return Ok(await _mediator.Send(new GetGroupPaymentsQuery(groupId, userId)));
+            var normalizedSkip = Math.Max(0, skip);
+            var normalizedTake = Math.Clamp(take, 1, 100);
+            return Ok(await _mediator.Send(new GetGroupPaymentsQuery(groupId, userId, normalizedSkip, normalizedTake)));
         }
         catch (ArgumentException ex)
         {

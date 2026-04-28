@@ -10,6 +10,8 @@
     "save": "Zapisz",
     "saving": "Zapisywanie...",
     "retry": "Spróbuj ponownie",
+    "close": "Zamknij",
+    "loadMore": "Załaduj więcej",
     "settled": "Rozliczone",
     "unknown": "Nieznane",
     "you": "Ty",
@@ -77,6 +79,12 @@
       "pl": "PL"
     }
   },
+  "memberProfile": {
+    "youTitle": "{{name}} (ty)",
+    "bio": "Bio",
+    "noBio": "Brak opisu profilu.",
+    "groupBalance": "Saldo w grupie"
+  },
   "dashboard": {
     "totalBalance": "Saldo łączne",
     "totalsSeparated": "Sumy są rozdzielone według waluty",
@@ -85,9 +93,12 @@
     "activeGroups": "Aktywne grupy",
     "monthlySplit": "Miesięczny podział",
     "savingsInsight": "Wgląd w oszczędności",
+    "currencies": "Waluty",
+    "openBalances": "Otwarte salda",
     "noGroups": "Nie masz jeszcze żadnych grup.",
     "members": "{{count}} uczestników",
     "lastActive": "Ostatnia aktywność {{value}}",
+    "noActivity": "brak aktywności",
     "createGroup": "Utwórz nową grupę",
     "groupName": "Nazwa grupy",
     "groupPlaceholder": "np. Narty 2026",
@@ -100,7 +111,23 @@
     "yesterday": "Wczoraj",
     "emptyTitle": "Brak nowej aktywności.",
     "emptyBody": "Tutaj pojawią się powiadomienia o wydatkach i płatnościach.",
-    "loadMore": "Załaduj więcej"
+    "searchPlaceholder": "Szukaj aktywności, osób, grup...",
+    "noResultsTitle": "Nic nie pasuje do wyszukiwania.",
+    "noResultsBody": "Spróbuj innej frazy albo filtra.",
+    "loadMore": "Załaduj więcej",
+    "filters": {
+      "all": "Wszystko",
+      "expenses": "Wydatki",
+      "payments": "Płatności",
+      "changes": "Zmiany"
+    }
+  },
+  "activityContent": {
+    "expenseCreated": "Dodano {{title}} za {{amount}}.",
+    "expenseUpdated": "Zmieniono {{title}}.",
+    "expenseDeleted": "Usunięto {{title}}.",
+    "paymentRecorded": "{{from}} zapłacił(a) {{to}} {{amount}}.",
+    "paymentVoided": "Cofnięto płatność: {{from}} do {{to}} za {{amount}}."
   },
   "activityTypes": {
     "expenseCreated": "Dodano wydatek",
@@ -147,7 +174,9 @@
     "addExpense": "Dodaj wydatek",
     "settleUp": "Rozlicz",
     "expenses": "Wydatki",
+    "expensesShort": "Wyd.",
     "balances": "Salda",
+    "balancesShort": "Saldo",
     "allExpenses": "Wszystkie wydatki",
     "noExpenses": "Brak wydatków.",
     "paidBy": "Zapłacił(a)",
@@ -193,6 +222,7 @@
   },
   "payments": {
     "tab": "Płatności",
+    "tabShort": "Płać",
     "suggestedEyebrow": "Rozliczanie",
     "suggestedTitle": "Sugerowane płatności",
     "suggestedSummary": "Te {{count}} płatności rozliczą aktualne salda grupy możliwie najmniejszą liczbą przelewów.",
@@ -239,6 +269,7 @@
     "leaveFailed": "Nie udało się opuścić grupy. Najpierw rozlicz salda.",
     "groupInfo": "Informacje o grupie",
     "readOnly": "Tylko odczyt",
+    "readOnlyDescription": "Tylko właściciel grupy może zmieniać dane grupy i role uczestników.",
     "avatar": "Avatar",
     "name": "Nazwa",
     "description": "Opis",

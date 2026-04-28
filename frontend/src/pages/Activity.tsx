@@ -4,6 +4,7 @@ import AppLayout from '../components/AppLayout';
 import ActivityRow, { type ActivityLog } from '../components/ActivityRow';
 import api from '../api';
 import { formatDate } from '../utils/date';
+import { getActivityMeta } from '../data/activityTypes';
 
 interface UserActivityLog extends ActivityLog {
   groupId: string;
@@ -11,6 +12,7 @@ interface UserActivityLog extends ActivityLog {
 }
 
 const PAGE_SIZE = 50;
+type ActivityFilter = 'all' | 'expenses' | 'payments' | 'changes';
 
 const getDayKey = (value: string): string => {
   const date = new Date(value);
@@ -57,14 +59,42 @@ const Activity: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [skip, setSkip] = useState(0);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<ActivityFilter>('all');
+
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return items.filter((item) => {
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'expenses' && item.activityType.startsWith('expense.')) ||
+        (filter === 'payments' && item.activityType.startsWith('payment.')) ||
+        (filter === 'changes' && (item.activityType.endsWith('.updated') || item.activityType.endsWith('.deleted') || item.activityType.endsWith('.voided')));
+
+      if (!matchesFilter) return false;
+      if (!normalizedQuery) return true;
+
+      const meta = getActivityMeta(item.activityType);
+      const searchable = [
+        item.userName,
+        item.groupName,
+        item.content,
+        t(meta.labelKey),
+        ...Object.values(item.memberNames ?? {}),
+      ].join(' ').toLowerCase();
+
+      return searchable.includes(normalizedQuery);
+    });
+  }, [filter, items, query, t]);
 
   const groupedItems = useMemo(() => {
-    return items.reduce<Record<string, UserActivityLog[]>>((groups, item) => {
+    return filteredItems.reduce<Record<string, UserActivityLog[]>>((groups, item) => {
       const key = getDayKey(item.createdAt);
       groups[key] = [...(groups[key] ?? []), item];
       return groups;
     }, {});
-  }, [items]);
+  }, [filteredItems]);
 
   const loadActivity = useCallback(async (skip: number) => {
     if (skip === 0) {
@@ -98,6 +128,38 @@ const Activity: React.FC = () => {
   return (
     <AppLayout title={t('activity.title')}>
       <div className="space-y-6">
+        <section className="app-card p-4 sm:p-5">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+            <label className="relative block">
+              <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-on-surface-variant">search</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t('activity.searchPlaceholder')}
+                className="app-input py-2.5 pl-10"
+              />
+            </label>
+
+            <div className="grid grid-cols-4 gap-1 rounded-xl border border-white/10 bg-surface-container-lowest p-1">
+              {(['all', 'expenses', 'payments', 'changes'] as ActivityFilter[]).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setFilter(option)}
+                  className={`rounded-lg px-2 py-2 text-xs font-bold transition focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 ${
+                    filter === option
+                      ? 'bg-primary text-on-primary'
+                      : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'
+                  }`}
+                >
+                  {t(`activity.filters.${option}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {error && (
           <div className="flex flex-col gap-3 rounded-xl border border-error/40 bg-error/10 p-4 text-error sm:flex-row sm:items-center sm:justify-between">
             <p className="font-semibold">{error}</p>
@@ -115,6 +177,12 @@ const Activity: React.FC = () => {
           <p className="font-headline text-xl">{t('activity.emptyTitle')}</p>
           <p className="text-sm mt-2">{t('activity.emptyBody')}</p>
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="app-card py-12 text-center text-on-surface-variant">
+            <span className="material-symbols-outlined mb-4 text-5xl opacity-50">search_off</span>
+            <p className="font-headline text-xl">{t('activity.noResultsTitle')}</p>
+            <p className="mt-2 text-sm">{t('activity.noResultsBody')}</p>
+          </div>
         ) : (
           <>
             <div className="space-y-8">
@@ -128,6 +196,7 @@ const Activity: React.FC = () => {
                       <ActivityRow
                         key={item.id}
                         log={item}
+                        memberNames={item.memberNames}
                         group={{ id: item.groupId, name: item.groupName }}
                       />
                     ))}

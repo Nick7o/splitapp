@@ -26,10 +26,17 @@ public class GetGroupActivityQueryHandler : IRequestHandler<GetGroupActivityQuer
 
         if (!isMember) return new List<ActivityLogDto>();
 
+        var memberNames = await _context.GroupMembers
+            .Include(gm => gm.User)
+            .Where(gm => gm.GroupId == request.GroupId)
+            .ToDictionaryAsync(gm => gm.UserId, gm => gm.User.Name, cancellationToken);
+
         var logs = await _context.ActivityLogs
             .Include(a => a.User)
             .Where(a => a.GroupId == request.GroupId)
             .OrderByDescending(a => a.CreatedAt)
+            .Skip(request.Skip < 0 ? 0 : request.Skip)
+            .Take(request.Take)
             .ToListAsync(cancellationToken);
 
         return logs.Select(a => new ActivityLogDto
@@ -39,7 +46,8 @@ public class GetGroupActivityQueryHandler : IRequestHandler<GetGroupActivityQuer
             Metadata = TryParseMetadata(a.MetadataJson),
             Content = a.Content,
             CreatedAt = a.CreatedAt,
-            UserName = a.User.Name
+            UserName = a.User.Name,
+            MemberNames = memberNames
         }).ToList();
     }
 

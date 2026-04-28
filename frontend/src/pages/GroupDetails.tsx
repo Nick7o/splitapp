@@ -10,6 +10,8 @@ import api, { API_ORIGIN } from '../api';
 import { formatMoney } from '../data/currencies';
 import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
 
+const EXPENSE_PAGE_SIZE = 30;
+
 interface User {
   id: string;
   name: string;
@@ -103,6 +105,7 @@ const GroupDetailsPage: React.FC = () => {
   const [group, setGroup] = useState<GroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [settlementsRefreshKey, setSettlementsRefreshKey] = useState(0);
+  const [visibleExpenseCount, setVisibleExpenseCount] = useState(EXPENSE_PAGE_SIZE);
 
   const fetchGroupDetails = useCallback(async () => {
     if (!id) return;
@@ -120,6 +123,10 @@ const GroupDetailsPage: React.FC = () => {
   useEffect(() => {
     fetchGroupDetails();
   }, [fetchGroupDetails]);
+
+  useEffect(() => {
+    setVisibleExpenseCount(EXPENSE_PAGE_SIZE);
+  }, [id]);
 
   useEffect(() => {
     let connection: signalR.HubConnection | null = null;
@@ -208,6 +215,13 @@ const GroupDetailsPage: React.FC = () => {
       return '';
     }
   })();
+  const tabItems: Array<{ id: 'expenses' | 'balances' | 'payments'; label: string; shortLabel: string; icon: string }> = [
+    { id: 'expenses', label: t('groupDetails.expenses'), shortLabel: t('groupDetails.expensesShort'), icon: 'receipt_long' },
+    { id: 'balances', label: t('groupDetails.balances'), shortLabel: t('groupDetails.balancesShort'), icon: 'account_balance_wallet' },
+    { id: 'payments', label: t('payments.tab'), shortLabel: t('payments.tabShort'), icon: 'payments' },
+  ];
+  const visibleExpenses = group.expenses.slice(0, visibleExpenseCount);
+  const hasMoreExpenses = visibleExpenseCount < group.expenses.length;
 
   return (
     <AppLayout
@@ -224,6 +238,7 @@ const GroupDetailsPage: React.FC = () => {
         </span>
       )}
       backTo="/dashboard"
+      titleVariant="subtle"
       actions={(
         <>
           <button
@@ -243,43 +258,38 @@ const GroupDetailsPage: React.FC = () => {
         </>
       )}
     >
-        {/* Hero Section / Group Summary */}
-        <section className="mb-10 mt-2">
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-primary to-primary-container p-5 text-on-primary shadow-[0_18px_48px_rgba(0,0,0,0.28)] backdrop-blur-md sm:p-8">
-            {/* Abstract Texture Background */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-tertiary/20 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-10 -mb-10 blur-2xl"></div>
-            
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10">
-              <div>
-                <div className="mb-5 flex items-start gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl shadow-inner">
+        <section className="mb-6 mt-1">
+          <div className="app-card-strong overflow-hidden p-5 sm:p-7">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-surface-container text-2xl shadow-inner">
                     {groupAvatar ? (
                       <span aria-hidden="true">{groupAvatar.emoji}</span>
                     ) : (
-                      <span className="material-symbols-outlined text-on-primary-container">group</span>
+                      <span className="material-symbols-outlined text-on-surface-variant">group</span>
                     )}
                   </div>
-                  <div>
-                    <p className="font-headline text-2xl font-bold text-on-primary">{group.name}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-headline text-2xl font-bold text-on-surface">{group.name}</p>
                     {group.description ? (
-                      <p className="mt-1 max-w-xl text-sm font-medium text-on-primary-container">{group.description}</p>
+                      <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-on-surface-variant">{group.description}</p>
                     ) : null}
                   </div>
                 </div>
-                <p className="mb-2 font-label text-sm font-medium uppercase tracking-widest text-on-primary-container">{t('groupDetails.myBalance')}</p>
+                <p className="mb-2 font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{t('groupDetails.myBalance')}</p>
                 {visibleBalanceEntries.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-2">
                     {visibleBalanceEntries.map(([currency, amount]) => (
                       <div key={currency}>
-                        <BalancePill amount={amount} currency={currency} size="lg" onDark />
+                        <BalancePill amount={amount} currency={currency} size="lg" />
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <BalancePill label={t('common.settled')} size="lg" onDark />
+                  <BalancePill label={t('common.settled')} size="lg" />
                 )}
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-on-primary-container">
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-on-surface-variant">
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
                   <span className="font-label text-sm font-semibold tracking-wide">{t('groupDetails.participants', { count: group.members.length })}</span>
                   <button 
@@ -288,16 +298,16 @@ const GroupDetailsPage: React.FC = () => {
                       navigator.clipboard.writeText(inviteLink);
                       alert(t('groupDetails.inviteCopied'));
                     }}
-                    className="ml-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 sm:ml-4"
+                    className="ml-0 rounded-lg border border-white/10 bg-surface-container px-3 py-1.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:ml-3"
                   >
                     {t('groupDetails.copyInvite')}
                   </button>
                 </div>
               </div>
-              <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row md:mt-0">
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                 <button 
                   onClick={() => navigate(`/groups/${id}/add-expense`)}
-                  className="app-button-primary bg-secondary text-on-secondary hover:bg-tertiary"
+                  className="app-button-primary"
                 >
                   <span className="material-symbols-outlined">add</span>
                   {t('groupDetails.addExpense')}
@@ -306,7 +316,7 @@ const GroupDetailsPage: React.FC = () => {
                   onClick={() => setActiveTab('payments')}
                   className="app-button-secondary"
                 >
-                  <span className="material-symbols-outlined text-tertiary">payments</span>
+                  <span className="material-symbols-outlined text-secondary">payments</span>
                   {t('groupDetails.settleUp')}
                 </button>
               </div>
@@ -314,62 +324,60 @@ const GroupDetailsPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Dynamic Tabs */}
-        <div className="flex gap-8 mb-8 border-b border-outline-variant/30">
-          <button
-            onClick={() => setActiveTab('expenses')}
-            className="relative py-2 group"
-          >
-            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'expenses' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>{t('groupDetails.expenses')}</span>
-            {activeTab === 'expenses' && <div className="absolute bottom-[-1px] left-0 w-full h-1 bg-tertiary rounded-t-full"></div>}
-          </button>
-          <button
-            onClick={() => setActiveTab('balances')}
-            className="relative py-2 group"
-          >
-            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'balances' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>{t('groupDetails.balances')}</span>
-            {activeTab === 'balances' && <div className="absolute bottom-[-1px] left-0 w-full h-1 bg-tertiary rounded-t-full"></div>}
-          </button>
-          <button
-            onClick={() => setActiveTab('payments')}
-            className="relative py-2 group"
-          >
-            <span className={`font-headline text-lg font-bold sm:text-xl ${activeTab === 'payments' ? 'text-secondary' : 'text-on-surface-variant hover:text-on-surface transition-colors'}`}>{t('payments.tab')}</span>
-            {activeTab === 'payments' && <div className="absolute bottom-[-1px] left-0 w-full h-1 bg-tertiary rounded-t-full"></div>}
-          </button>
+        <div className="sticky top-[4.75rem] z-40 mb-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-surface/90 p-1.5 shadow-soft backdrop-blur-xl md:top-20">
+          {tabItems.map((tab) => {
+            const selected = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:gap-2 ${
+                  selected
+                    ? 'bg-primary text-on-primary shadow-lg shadow-primary/15'
+                    : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: selected ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
+                <span className="truncate sm:hidden">{tab.shortLabel}</span>
+                <span className="hidden truncate sm:inline">{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab Content */}
         {activeTab === 'expenses' ? (
           <div className="space-y-10">
             <div>
-              <h3 className="font-label text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-6">{t('groupDetails.allExpenses')}</h3>
+              <h3 className="mb-4 font-label text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">{t('groupDetails.allExpenses')}</h3>
               <div className="space-y-4">
                 {group.expenses.length === 0 ? (
                   <p className="text-on-surface-variant">{t('groupDetails.noExpenses')}</p>
                 ) : (
-                  group.expenses.map(expense => {
+                  visibleExpenses.map(expense => {
                     const payerName = getPayerName(expense.payerId);
                     const isMe = payerName === t('common.me');
                     return (
                       <div 
                         key={expense.id} 
                         onClick={() => navigate(`/groups/${id}/edit-expense/${expense.id}`)}
-                        className="app-card flex cursor-pointer items-center justify-between p-4 transition-all hover:bg-surface-container-low active:scale-[0.99] sm:p-5"
+                        className="app-card flex cursor-pointer flex-col gap-4 p-4 transition-all hover:-translate-y-0.5 hover:bg-surface-container-low active:scale-[0.99] sm:p-5 md:flex-row md:items-center md:justify-between"
                       >
-                        <div className="flex items-center gap-5">
-                          <div className={`flex h-12 w-12 items-center justify-center rounded-xl shadow-inner ${isMe ? 'bg-secondary-container text-secondary' : 'bg-tertiary-fixed text-on-secondary-container'}`}>
+                        <div className="flex min-w-0 items-center gap-4">
+                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-inner ${isMe ? 'bg-primary/14 text-primary-fixed' : 'bg-tertiary-fixed text-on-tertiary'}`}>
                             <span className="material-symbols-outlined">receipt_long</span>
                           </div>
-                          <div>
-                            <h4 className="font-headline font-bold text-on-surface text-lg">{expense.title}</h4>
+                          <div className="min-w-0">
+                            <h4 className="truncate font-headline text-lg font-bold text-on-surface">{expense.title}</h4>
                             <p className="font-label text-sm text-on-surface-variant">{t('groupDetails.paidBy')} <span className={`font-semibold ${isMe ? 'text-secondary' : 'text-tertiary'}`}>{payerName}</span></p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
+                        <div className="flex w-full items-center justify-between gap-4 md:w-auto md:justify-end">
+                          <div className="text-left md:text-right">
                             <p className="font-headline font-extrabold text-on-surface text-lg">{formatMoney(expense.totalAmount, expense.currency)}</p>
-                            <p className={`font-label text-xs font-medium uppercase tracking-wider ${isMe ? 'text-secondary' : 'text-error'}`}>
+                            <p className={`font-label text-xs font-medium uppercase tracking-wider ${isMe ? 'text-primary-fixed' : 'text-error'}`}>
                               {isMe 
                                 ? (expense.totalAmount - expense.myShare > 0 ? t('groupDetails.youGet', { amount: formatMoney(expense.totalAmount - expense.myShare, expense.currency) }) : t('common.settled'))
                                 : (expense.myShare > 0 ? t('groupDetails.youOwe', { amount: formatMoney(expense.myShare, expense.currency) }) : t('common.settled'))}
@@ -382,6 +390,18 @@ const GroupDetailsPage: React.FC = () => {
                   })
                 )}
               </div>
+              {hasMoreExpenses ? (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    type="button"
+                    className="app-button-secondary"
+                    onClick={() => setVisibleExpenseCount((count) => count + EXPENSE_PAGE_SIZE)}
+                  >
+                    <span className="material-symbols-outlined">expand_more</span>
+                    {t('common.loadMore')}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : activeTab === 'balances' ? (
@@ -406,7 +426,7 @@ const GroupDetailsPage: React.FC = () => {
       {/* Floating Action Button for Adding Expense (Mobile) */}
       <button 
         onClick={() => navigate(`/groups/${id}/add-expense`)}
-        className="fixed bottom-28 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-secondary text-on-secondary shadow-[0_8px_24px_rgba(245,158,11,0.28)] transition-all hover:-translate-y-1 active:scale-95 md:hidden"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-primary text-on-primary shadow-[0_10px_30px_rgba(15,118,110,0.28)] transition-all hover:-translate-y-1 active:scale-95 md:hidden"
       >
         <span className="material-symbols-outlined">add</span>
       </button>

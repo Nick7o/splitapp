@@ -10,6 +10,8 @@
     "save": "Save",
     "saving": "Saving...",
     "retry": "Retry",
+    "close": "Close",
+    "loadMore": "Load more",
     "settled": "Settled",
     "unknown": "Unknown",
     "you": "You",
@@ -77,6 +79,12 @@
       "pl": "PL"
     }
   },
+  "memberProfile": {
+    "youTitle": "{{name}} (you)",
+    "bio": "Bio",
+    "noBio": "No bio added yet.",
+    "groupBalance": "Group balance"
+  },
   "dashboard": {
     "totalBalance": "Total Balance",
     "totalsSeparated": "Totals are separated by currency",
@@ -85,9 +93,12 @@
     "activeGroups": "Active Groups",
     "monthlySplit": "Monthly Split",
     "savingsInsight": "Savings Insight",
+    "currencies": "Currencies",
+    "openBalances": "Open balances",
     "noGroups": "You don't have any groups yet.",
     "members": "{{count}} members",
     "lastActive": "Last active {{value}}",
+    "noActivity": "no activity yet",
     "createGroup": "Create New Group",
     "groupName": "Group Name",
     "groupPlaceholder": "e.g. Ski Trip 2026",
@@ -100,7 +111,23 @@
     "yesterday": "Yesterday",
     "emptyTitle": "No new activity.",
     "emptyBody": "All expense and payment notifications will appear here.",
-    "loadMore": "Load more"
+    "searchPlaceholder": "Search activity, people, groups...",
+    "noResultsTitle": "Nothing matches that search.",
+    "noResultsBody": "Try a different phrase or filter.",
+    "loadMore": "Load more",
+    "filters": {
+      "all": "All",
+      "expenses": "Expenses",
+      "payments": "Payments",
+      "changes": "Changes"
+    }
+  },
+  "activityContent": {
+    "expenseCreated": "Added {{title}} for {{amount}}.",
+    "expenseUpdated": "Updated {{title}}.",
+    "expenseDeleted": "Deleted {{title}}.",
+    "paymentRecorded": "{{from}} paid {{to}} {{amount}}.",
+    "paymentVoided": "Undid {{from}}'s payment to {{to}} for {{amount}}."
   },
   "activityTypes": {
     "expenseCreated": "Expense added",
@@ -147,7 +174,9 @@
     "addExpense": "Add Expense",
     "settleUp": "Settle Up",
     "expenses": "Expenses",
+    "expensesShort": "Spend",
     "balances": "Balances",
+    "balancesShort": "Balance",
     "allExpenses": "All Expenses",
     "noExpenses": "No expenses yet.",
     "paidBy": "Paid by",
@@ -193,6 +222,7 @@
   },
   "payments": {
     "tab": "Payments",
+    "tabShort": "Pay",
     "suggestedEyebrow": "Settle up",
     "suggestedTitle": "Suggested payments",
     "suggestedSummary": "These {{count}} payments settle the current group balances with the fewest direct transfers.",
@@ -239,6 +269,7 @@
     "leaveFailed": "Could not leave group. Settle your balances first.",
     "groupInfo": "Group info",
     "readOnly": "Read only",
+    "readOnlyDescription": "Only the group owner can edit group details and member roles.",
     "avatar": "Avatar",
     "name": "Name",
     "description": "Description",

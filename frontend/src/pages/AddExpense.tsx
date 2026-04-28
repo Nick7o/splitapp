@@ -241,12 +241,13 @@ const AddExpense: React.FC = () => {
   return (
     <AppLayout
       title={expenseId ? t('addExpense.editTitle') : t('addExpense.newTitle')}
+      titleVariant="hidden"
       backTo={`/groups/${id}`}
       maxWidthClassName="max-w-2xl"
     >
-          <div className="mb-8 flex items-start justify-between gap-4 text-left">
+          <div className="mb-6 flex items-start justify-between gap-4 text-left">
             <div>
-              <h1 className="mb-2 text-3xl font-extrabold leading-tight tracking-tight text-on-surface sm:text-4xl">
+              <h1 className="mb-2 font-headline text-3xl font-extrabold leading-tight tracking-tight text-on-surface">
                 {expenseId ? t('addExpense.editHeading') : t('addExpense.newHeading')}
               </h1>
               <p className="text-on-surface-variant font-body">
@@ -274,18 +275,18 @@ const AddExpense: React.FC = () => {
             )}
           </div>
 
-        <div className="space-y-12">
+        <div className="space-y-8">
           {/* Step 1: Core Details */}
-          <section className="space-y-6">
+          <section className="space-y-5">
             <div className="app-card p-5 sm:p-6">
-              <div className="space-y-8">
+              <div className="space-y-7">
                 
                 {/* Amount Input */}
                 <div className="text-center">
                   <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-4">{t('addExpense.amount', { currency })}</label>
                   <div className="relative inline-flex items-center">
-                    <input 
-                      className="w-full border-none bg-transparent text-center font-headline text-5xl font-extrabold text-secondary placeholder:text-on-surface-variant/50 focus:ring-0" 
+                    <input
+                      className="w-full border-none bg-transparent text-center font-headline text-5xl font-extrabold text-primary-fixed placeholder:text-on-surface-variant/50 focus:ring-0"
                       placeholder="0.00" 
                       type="number"
                       step="0.01"
@@ -321,7 +322,7 @@ const AddExpense: React.FC = () => {
                         <button 
                           key={member.id}
                           onClick={() => setPayerId(member.id)}
-                          className={`flex items-center gap-2 rounded-xl px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-secondary/50 active:scale-95 ${isSelected ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface hover:bg-surface-container-high'}`}
+                          className={`flex items-center gap-2 rounded-xl px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 active:scale-95 ${isSelected ? 'bg-primary text-on-primary shadow-soft ring-1 ring-primary-fixed/30' : 'border border-white/10 bg-surface-container text-on-surface hover:bg-surface-container-high'}`}
                         >
                           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
                           <span>{isMe ? t('common.you') : member.name}</span>
@@ -335,28 +336,28 @@ const AddExpense: React.FC = () => {
           </section>
 
           {/* Step 2: Split Method */}
-          <section className="space-y-6">
+          <section className="space-y-5">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-on-surface">{t('addExpense.splitMethod')}</h2>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-surface-container-lowest p-1.5 shadow-soft">
               <button 
                 onClick={() => setSplitMethod('equally')}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'equally' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-3 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:p-4 ${splitMethod === 'equally' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-primary-fixed/30' : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">equalizer</span>
                 <span className="text-xs font-bold uppercase tracking-tight">{t('addExpense.equal')}</span>
               </button>
               <button 
                 onClick={() => setSplitMethod('percent')}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'percent' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-3 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:p-4 ${splitMethod === 'percent' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-primary-fixed/30' : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">percent</span>
                 <span className="text-xs font-bold uppercase tracking-tight">{t('addExpense.percent')}</span>
               </button>
               <button 
                 onClick={() => setSplitMethod('exact')}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${splitMethod === 'exact' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-secondary/30' : 'border border-white/10 bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-3 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:p-4 ${splitMethod === 'exact' ? 'bg-primary text-on-primary shadow-soft ring-1 ring-primary-fixed/30' : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined">payments</span>
                 <span className="text-xs font-bold uppercase tracking-tight">{t('addExpense.exact')}</span>
@@ -368,7 +369,7 @@ const AddExpense: React.FC = () => {
               <div className="flex items-center justify-between px-2">
                 <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">{t('addExpense.participants')}</span>
                 {splitMethod === 'equally' && (
-                  <button onClick={selectAllMembers} className="text-xs font-bold text-secondary uppercase tracking-widest hover:text-secondary-container transition-colors">{t('addExpense.selectAll')}</button>
+                  <button onClick={selectAllMembers} className="text-xs font-bold uppercase tracking-widest text-secondary transition-colors hover:text-tertiary-container">{t('addExpense.selectAll')}</button>
                 )}
               </div>
               <div className="space-y-3">
@@ -378,27 +379,27 @@ const AddExpense: React.FC = () => {
                   const owedAmount = calculateOwedAmount(member.id);
 
                   return (
-                    <div key={member.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-surface-container p-4 shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant">
+                    <div key={member.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-surface-container p-4 shadow-sm">
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-highest text-on-surface-variant">
                           <span className="material-symbols-outlined">person</span>
                         </div>
-                        <div>
-                          <p className="font-bold text-on-surface font-headline">{isMe ? t('common.you') : member.name}</p>
+                        <div className="min-w-0">
+                          <p className="truncate font-headline font-bold text-on-surface">{isMe ? t('common.you') : member.name}</p>
                           {splitMethod === 'equally' ? (
-                            <p className="text-xs text-secondary font-medium">{owedAmount.toFixed(2)} {currency}</p>
+                            <p className="text-xs font-medium text-primary-fixed">{owedAmount.toFixed(2)} {currency}</p>
                           ) : (
-                            <div className="flex items-center mt-2">
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
                               <input 
                                 type="number" 
                                 min="0"
                                 step={splitMethod === 'percent' ? '1' : '0.01'}
-                                className="w-24 rounded-lg border border-white/10 bg-surface-container-low px-3 py-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-secondary/50"
+                                className="w-24 rounded-lg border border-white/10 bg-surface-container-low px-3 py-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed/50"
                                 placeholder={splitMethod === 'percent' ? '%' : '0.00'}
                                 value={customSplits[member.id] || ''}
                                 onChange={(e) => handleCustomSplitChange(member.id, e.target.value)}
                               />
-                              <span className="text-xs font-bold text-on-surface-variant ml-3">
+                              <span className="text-xs font-bold text-on-surface-variant">
                                 {splitMethod === 'percent' ? `% (${owedAmount.toFixed(2)} ${currency})` : currency}
                               </span>
                             </div>
@@ -409,7 +410,7 @@ const AddExpense: React.FC = () => {
                       {splitMethod === 'equally' && (
                         <button 
                           onClick={() => toggleMemberSelection(member.id)}
-                          className={`flex h-6 w-6 items-center justify-center rounded-full border shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 ${isSelected ? 'border-primary-container bg-primary text-on-primary' : 'border-white/20 bg-surface-container-high text-transparent'}`}
+                          className={`flex h-6 w-6 items-center justify-center rounded-lg border shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 ${isSelected ? 'border-primary-fixed/40 bg-primary text-on-primary' : 'border-white/20 bg-surface-container-high text-transparent'}`}
                         >
                           <span className="material-symbols-outlined text-sm font-bold">check</span>
                         </button>

@@ -50,6 +50,7 @@ public class GroupMemberDto
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? AvatarKey { get; set; }
+    public string? Bio { get; set; }
     public int Role { get; set; }
 }
 

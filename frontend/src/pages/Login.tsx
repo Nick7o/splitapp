@@ -84,9 +84,12 @@ const Login: React.FC = () => {
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-5">
         <div className="app-card-strong w-full max-w-md p-6 text-center sm:p-8">
-          <h1 className="mb-2 font-headline text-4xl font-extrabold tracking-tighter text-secondary">{t('app.name')}</h1>
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary-fixed/20 bg-primary/16 text-primary-fixed shadow-inner">
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>payments</span>
+          </div>
+          <h1 className="mb-2 font-headline text-4xl font-extrabold tracking-tight text-on-surface">{t('app.name')}</h1>
           <p className="text-on-surface-variant font-body mb-8">{t('login.tagline')}</p>
           
           {error && <div className="mb-4 p-3 bg-error/10 text-error rounded-xl text-sm font-medium">{error}</div>}
@@ -158,7 +161,7 @@ const Login: React.FC = () => {
               setIsRegistering(!isRegistering);
               setError('');
             }}
-            className="text-sm font-semibold text-secondary transition-colors hover:text-tertiary-container focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:ring-offset-2 focus:ring-offset-background rounded-lg px-2 py-1"
+            className="rounded-lg px-2 py-1 text-sm font-semibold text-secondary transition-colors hover:text-tertiary-container focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 focus:ring-offset-2 focus:ring-offset-background"
           >
             {isRegistering ? t('login.alreadyHave') : t('login.dontHave')}
           </button>

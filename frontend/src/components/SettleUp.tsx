@@ -38,7 +38,7 @@ interface SettleUpProps {
   onChanged?: () => void | Promise<void>;
 }
 
-const avatarClassName = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-container text-base font-bold text-on-surface';
+const avatarClassName = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container text-sm font-bold text-on-surface sm:h-11 sm:w-11 sm:text-base';
 
 const getInitials = (name: string) => {
   const initials = name
@@ -103,21 +103,21 @@ const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, 
   const renderTransfer = (transfer: DebtTransfer, currency: string, index: number) => (
     <div
       key={`${currency}-${transfer.fromUserId}-${transfer.toUserId}-${index}`}
-      className="rounded-xl border border-white/10 bg-surface-container-lowest p-4 transition-colors hover:bg-surface-container-low"
+      className="rounded-xl border border-white/10 bg-surface-container-lowest p-3 transition hover:-translate-y-0.5 hover:bg-surface-container-low sm:p-4"
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex shrink-0 items-center">
             {renderAvatar(transfer.fromName, transfer.fromAvatarKey)}
-            <span className="material-symbols-outlined mx-2 text-base text-on-surface-variant">arrow_forward</span>
+            <span className="material-symbols-outlined mx-1.5 text-base text-on-surface-variant sm:mx-2">arrow_forward</span>
             {renderAvatar(transfer.toName, transfer.toAvatarKey)}
           </div>
 
           <div className="min-w-0">
-            <p className="truncate font-headline text-lg font-bold text-on-surface">
+            <p className="break-words font-headline text-base font-bold leading-tight text-on-surface sm:text-lg">
               {t('payments.pays', { from: transfer.fromName, to: transfer.toName })}
             </p>
-            <p className="mt-0.5 text-sm font-bold text-secondary">
+            <p className="mt-0.5 text-sm font-bold text-primary-fixed">
               {formatMoney(transfer.amount, currency)}
             </p>
           </div>
@@ -153,12 +153,12 @@ const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, 
 
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {totalsByCurrency.length === 0 ? (
-            <span className="rounded-full border border-outline-variant/30 bg-surface-container px-3 py-1.5 text-sm font-bold text-on-surface-variant">
+            <span className="rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-1.5 text-sm font-bold text-on-surface-variant">
               {t('common.settled')}
             </span>
           ) : (
             totalsByCurrency.map((section) => (
-              <span key={section.currency} className="rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-sm font-bold text-secondary">
+              <span key={section.currency} className="rounded-lg border border-primary-fixed/25 bg-primary/12 px-3 py-1.5 text-sm font-bold text-primary-fixed">
                 {formatMoney(section.total, section.currency)}
               </span>
             ))

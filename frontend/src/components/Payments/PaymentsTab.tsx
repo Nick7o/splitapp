@@ -24,28 +24,42 @@ interface PaymentsTabProps {
   onChanged?: () => void | Promise<void>;
 }
 
+const PAGE_SIZE = 50;
+
 const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCurrency, refreshKey, onChanged }) => {
   const { t } = useTranslation();
   const [payments, setPayments] = useState<GroupPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const membersById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
   const firstMember = members[0]?.id ?? '';
   const secondMember = members.find((member) => member.id !== firstMember)?.id ?? '';
 
-  const fetchPayments = useCallback(async () => {
-    setLoading(true);
+  const fetchPayments = useCallback(async (nextSkip = 0, append = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError('');
 
     try {
-      const response = await api.get<GroupPayment[]>(`/groups/${groupId}/payments`);
-      setPayments(response.data);
+      const response = await api.get<GroupPayment[]>(`/groups/${groupId}/payments`, {
+        params: { skip: nextSkip, take: PAGE_SIZE }
+      });
+      setPayments((current) => (append ? [...current, ...response.data] : response.data));
+      setSkip(nextSkip + response.data.length);
+      setHasMore(response.data.length === PAGE_SIZE);
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.response?.data?.detail || apiError.response?.data?.Error || t('common.error'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [groupId, t]);
 
@@ -54,7 +68,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
   }, [fetchPayments, refreshKey]);
 
   const handleChanged = useCallback(async () => {
-    await fetchPayments();
+    await fetchPayments(0, false);
     await onChanged?.();
   }, [fetchPayments, onChanged]);
 
@@ -75,7 +89,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
     const avatar = member?.avatarKey ? AVATAR_BY_KEY[member.avatarKey] : null;
 
     return (
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold ${avatar?.bg ?? 'bg-surface-container text-on-surface'}`}>
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold ${avatar?.bg ?? 'bg-surface-container text-on-surface'}`}>
         {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : member?.name.charAt(0).toUpperCase() ?? '?'}
       </span>
     );
@@ -113,10 +127,10 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
           </div>
 
           <div className="flex flex-col gap-2 sm:items-end">
-            <p className={`font-headline text-xl font-bold ${voided ? 'text-on-surface-variant line-through' : 'text-secondary'}`}>
+            <p className={`font-headline text-xl font-bold ${voided ? 'text-on-surface-variant line-through' : 'text-primary-fixed'}`}>
               {formatMoney(payment.amount, payment.currency)}
             </p>
-            <span className="w-fit rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            <span className="w-fit rounded-lg bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
               {voided ? t('payments.voided') : t('payments.recorded')}
             </span>
           </div>
@@ -171,6 +185,15 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
           <h3 className="font-label text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">{t('payments.voidedPayments')}</h3>
           {voidedPayments.map(renderPayment)}
         </section>
+      ) : null}
+
+      {!loading && hasMore ? (
+        <div className="flex justify-center">
+          <button type="button" className="app-button-secondary" onClick={() => fetchPayments(skip, true)} disabled={loadingMore}>
+            <span className="material-symbols-outlined">expand_more</span>
+            {loadingMore ? t('common.loading') : t('activity.loadMore')}
+          </button>
+        </div>
       ) : null}
 
       {manualOpen ? (

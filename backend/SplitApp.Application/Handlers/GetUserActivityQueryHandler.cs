@@ -42,6 +42,24 @@ public class GetUserActivityQueryHandler : IRequestHandler<GetUserActivityQuery,
             .Take(request.Take)
             .ToListAsync(cancellationToken);
 
+        var visibleGroupIds = logs
+            .Where(log => log.GroupId.HasValue)
+            .Select(log => log.GroupId!.Value)
+            .Distinct()
+            .ToList();
+
+        var memberRows = await _context.GroupMembers
+            .Include(gm => gm.User)
+            .Where(gm => visibleGroupIds.Contains(gm.GroupId))
+            .Select(gm => new { gm.GroupId, gm.UserId, gm.User.Name })
+            .ToListAsync(cancellationToken);
+
+        var memberNamesByGroupId = memberRows
+            .GroupBy(member => member.GroupId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.ToDictionary(member => member.UserId, member => member.Name));
+
         return logs.Select(a => new UserActivityLogDto
         {
             Id = a.Id,
@@ -51,7 +69,10 @@ public class GetUserActivityQueryHandler : IRequestHandler<GetUserActivityQuery,
             CreatedAt = a.CreatedAt,
             UserName = a.User.Name,
             GroupId = a.GroupId!.Value,
-            GroupName = a.Group?.Name ?? string.Empty
+            GroupName = a.Group?.Name ?? string.Empty,
+            MemberNames = memberNamesByGroupId.TryGetValue(a.GroupId!.Value, out var memberNames)
+                ? memberNames
+                : new Dictionary<Guid, string>()
         }).ToList();
     }
 

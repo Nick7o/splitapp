@@ -32,15 +32,15 @@ const BalancePill: React.FC<BalancePillProps> = ({
 
   const paletteClass = onDark
     ? isNeutral
-      ? 'bg-white/18 text-on-primary border-white/35 shadow-[0_6px_20px_rgba(0,0,0,0.24)]'
+      ? 'bg-white/14 text-on-primary border-white/30 shadow-[0_6px_20px_rgba(2,6,23,0.2)]'
       : isPositive
-        ? 'bg-secondary/35 text-on-primary border-secondary/55 shadow-[0_6px_20px_rgba(0,0,0,0.22)]'
-        : 'bg-error/35 text-on-primary border-error/55 shadow-[0_6px_20px_rgba(0,0,0,0.22)]'
+        ? 'bg-primary-fixed/22 text-on-primary border-primary-fixed/45 shadow-[0_6px_20px_rgba(2,6,23,0.2)]'
+        : 'bg-error/28 text-on-primary border-error/45 shadow-[0_6px_20px_rgba(2,6,23,0.2)]'
     : isNeutral
       ? 'bg-surface-container text-on-surface-variant border-outline-variant/40'
       : isPositive
-        ? 'bg-secondary-container text-secondary border-secondary/30'
-        : 'bg-error/15 text-error border-error/30';
+        ? 'bg-primary/14 text-primary-fixed border-primary-fixed/30'
+        : 'bg-error-container text-error border-error/30';
 
   const content = explicitLabel
     ? label
@@ -50,7 +50,7 @@ const BalancePill: React.FC<BalancePillProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border font-label font-semibold tracking-wide ${SIZE_CLASSES[size]} ${paletteClass}`}
+      className={`inline-flex items-center rounded-lg border font-label font-semibold tracking-wide ${SIZE_CLASSES[size]} ${paletteClass}`}
     >
       {content}
     </span>

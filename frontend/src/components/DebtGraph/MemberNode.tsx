@@ -42,32 +42,32 @@ const MemberNode: React.FC<NodeProps<MemberNodeType>> = ({ id, data }) => {
       onMouseEnter={() => setHoveredNodeId(id)}
       onMouseLeave={() => setHoveredNodeId(null)}
     >
-      <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-0 !bg-secondary/70" />
+      <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-0 !bg-secondary/80" />
       <button
         type="button"
         onClick={() => setSelectedNodeId(selected ? null : id)}
-        className={`nodrag flex w-[180px] items-center gap-3 rounded-full border px-3 py-2 text-left shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition-all focus:outline-none focus:ring-2 focus:ring-secondary/70 ${
+        className={`nodrag flex w-[180px] items-center gap-3 rounded-2xl border px-3 py-2 text-left shadow-[0_10px_28px_rgba(2,6,23,0.24)] transition-all focus:outline-none focus:ring-2 focus:ring-primary-fixed/70 ${
           data.isCurrentUser
-            ? 'border-secondary bg-secondary-container text-on-surface ring-2 ring-secondary/40'
-            : 'border-outline-variant/25 bg-surface-container text-on-surface hover:border-secondary/60'
+            ? 'border-primary-fixed/35 bg-primary/16 text-on-surface ring-2 ring-primary-fixed/30'
+            : 'border-outline-variant/25 bg-surface-container text-on-surface hover:border-primary-fixed/55'
         }`}
       >
-        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xl font-bold ${avatar?.bg ?? 'bg-surface-container-high text-on-surface'}`}>
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${avatar?.bg ?? 'bg-surface-container-high text-on-surface'}`}>
           {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : data.name.charAt(0).toUpperCase()}
         </span>
         <span className="min-w-0">
           <span className="block truncate font-headline text-base font-bold">{data.name}</span>
-          <span className={data.balance >= 0 ? 'block text-xs font-semibold text-emerald-300' : 'block text-xs font-semibold text-error'}>
+          <span className={data.balance >= 0 ? 'block text-xs font-semibold text-primary-fixed' : 'block text-xs font-semibold text-error'}>
             {formatMoney(data.balance, data.currency)}
           </span>
         </span>
       </button>
-      <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-0 !bg-secondary/70" />
+      <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-0 !bg-secondary/80" />
 
       {selected ? (
-        <div className="nodrag absolute left-1/2 top-full z-30 mt-3 w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-surface p-4 text-left shadow-[0_18px_42px_rgba(0,0,0,0.36)]">
+        <div className="nodrag absolute left-1/2 top-full z-30 mt-3 w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-surface p-4 text-left shadow-[0_18px_42px_rgba(2,6,23,0.36)]">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">{t('debtGraph.netBalance')}</p>
-          <p className={`mt-1 font-headline text-xl font-bold ${data.balance >= 0 ? 'text-emerald-300' : 'text-error'}`}>
+          <p className={`mt-1 font-headline text-xl font-bold ${data.balance >= 0 ? 'text-primary-fixed' : 'text-error'}`}>
             {formatMoney(data.balance, data.currency)}
           </p>
           <div className="mt-3 space-y-2">
