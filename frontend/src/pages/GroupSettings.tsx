@@ -7,32 +7,17 @@ import CurrencyPicker from '../components/CurrencyPicker';
 import MemberProfileDialog from '../components/MemberProfileDialog';
 import { AVATAR_BY_KEY } from '../data/avatars';
 import { GROUP_AVATARS } from '../data/groupAvatars';
-
-interface GroupDetails {
-  id: string;
-  name: string;
-  description?: string | null;
-  avatarKey?: string | null;
-  currency: string;
-  ownerId: string;
-}
-
-interface GroupMember {
-  userId: string;
-  name: string;
-  email: string;
-  avatarKey?: string | null;
-  bio?: string | null;
-  role: number;
-}
+import type { ApiGroup, ApiGroupDetails, ApiGroupMember } from '../types/api';
+import { getApiErrorMessage } from '../utils/apiError';
+import { getStoredUser } from '../utils/storage';
 
 const GroupSettings: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const [group, setGroup] = useState<GroupDetails | null>(null);
-  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [group, setGroup] = useState<ApiGroup | null>(null);
+  const [members, setMembers] = useState<ApiGroupMember[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [avatarKey, setAvatarKey] = useState<string>('');
@@ -41,14 +26,11 @@ const GroupSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
-  const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<ApiGroupMember | null>(null);
 
   const currentUserId = useMemo(() => {
     try {
-      const raw = localStorage.getItem('user');
-      if (!raw) return '';
-      const parsed = JSON.parse(raw) as { id?: string };
-      return parsed.id ?? '';
+      return getStoredUser().id ?? '';
     } catch {
       return '';
     }
@@ -64,8 +46,8 @@ const GroupSettings: React.FC = () => {
 
     try {
       const [groupResponse, membersResponse] = await Promise.all([
-        api.get<GroupDetails>(`/groups/${id}`),
-        api.get<GroupMember[]>(`/groups/${id}/members`)
+        api.get<ApiGroupDetails>(`/groups/${id}`),
+        api.get<ApiGroupMember[]>(`/groups/${id}/members`)
       ]);
 
       const fetchedGroup = groupResponse.data;
@@ -74,7 +56,7 @@ const GroupSettings: React.FC = () => {
       setName(fetchedGroup.name ?? '');
       setDescription(fetchedGroup.description ?? '');
       setAvatarKey(fetchedGroup.avatarKey ?? '');
-      setCurrency(fetchedGroup.currency ?? 'PLN');
+      setCurrency(fetchedGroup.defaultCurrency ?? 'PLN');
     } catch (err) {
       console.error('Failed to fetch group settings', err);
       setError(t('groupSettings.loadFailed'));
@@ -87,7 +69,7 @@ const GroupSettings: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  const resolveRoleLabel = (member: GroupMember): string => {
+  const resolveRoleLabel = (member: ApiGroupMember): string => {
     if (member.userId === group?.ownerId) return t('groupSettings.owner');
     if (member.role === 1) return t('groupSettings.admin');
     return t('groupSettings.member');
@@ -112,24 +94,24 @@ const GroupSettings: React.FC = () => {
     setBanner(null);
 
     try {
-      const response = await api.put<GroupDetails>(`/groups/${id}`, {
+      const response = await api.put<ApiGroup>(`/groups/${id}`, {
         name,
         description,
         avatarKey: avatarKey || null,
-        currency
+        defaultCurrency: currency
       });
 
       setGroup(response.data);
       setBanner(t('groupSettings.saved'));
     } catch (err) {
       console.error('Failed to update group settings', err);
-      setError(t('groupSettings.saveFailed'));
+      setError(getApiErrorMessage(err, t, 'groupSettings.saveFailed'));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRoleToggle = async (member: GroupMember) => {
+  const handleRoleToggle = async (member: ApiGroupMember) => {
     if (!id || !isOwner || member.userId === group?.ownerId) return;
 
     setError(null);
@@ -142,11 +124,11 @@ const GroupSettings: React.FC = () => {
       setBanner(t('groupSettings.roleUpdated'));
     } catch (err) {
       console.error('Failed to update member role', err);
-      setError(t('groupSettings.roleUpdateFailed'));
+      setError(getApiErrorMessage(err, t, 'groupSettings.roleUpdateFailed'));
     }
   };
 
-  const handleRemoveMember = async (member: GroupMember) => {
+  const handleRemoveMember = async (member: ApiGroupMember) => {
     if (!id || !isOwner || member.userId === group?.ownerId) return;
 
     const confirmed = window.confirm(t('groupSettings.removeConfirm', { name: member.name }));
@@ -161,7 +143,7 @@ const GroupSettings: React.FC = () => {
       setBanner(t('groupSettings.memberRemoved'));
     } catch (err) {
       console.error('Failed to remove member', err);
-      setError(t('groupSettings.removeFailed'));
+      setError(getApiErrorMessage(err, t, 'groupSettings.removeFailed'));
     }
   };
 
@@ -178,7 +160,7 @@ const GroupSettings: React.FC = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Failed to leave group', err);
-      setError(t('groupSettings.leaveFailed'));
+      setError(getApiErrorMessage(err, t, 'groupSettings.leaveFailed'));
     }
   };
 

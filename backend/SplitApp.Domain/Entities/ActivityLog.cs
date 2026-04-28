@@ -11,6 +11,5 @@ public class ActivityLog
     public User User { get; set; } = null!;
     public string ActivityType { get; set; } = "legacy";
     public string? MetadataJson { get; set; }
-    public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

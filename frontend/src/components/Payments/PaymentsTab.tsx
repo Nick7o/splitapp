@@ -4,17 +4,9 @@ import api from '../../api';
 import { AVATAR_BY_KEY } from '../../data/avatars';
 import { formatMoney } from '../../data/currencies';
 import { formatDateTime } from '../../utils/date';
+import { getApiErrorMessage } from '../../utils/apiError';
 import RecordGroupPaymentDialog from './RecordGroupPaymentDialog';
 import type { GroupPayment, PaymentMember } from './types';
-
-interface ApiError {
-  response?: {
-    data?: {
-      detail?: string;
-      Error?: string;
-    };
-  };
-}
 
 interface PaymentsTabProps {
   groupId: string;
@@ -55,8 +47,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
       setSkip(nextSkip + response.data.length);
       setHasMore(response.data.length === PAGE_SIZE);
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.response?.data?.detail || apiError.response?.data?.Error || t('common.error'));
+      setError(getApiErrorMessage(err, t));
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -80,8 +71,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
       await api.post(`/payments/${payment.id}/void`);
       await handleChanged();
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.response?.data?.detail || apiError.response?.data?.Error || t('payments.voidFailed'));
+      setError(getApiErrorMessage(err, t, 'payments.voidFailed'));
     }
   };
 
@@ -95,14 +85,14 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
     );
   };
 
-  const activePayments = payments.filter((payment) => payment.status !== 'Cancelled');
-  const voidedPayments = payments.filter((payment) => payment.status === 'Cancelled');
+  const activePayments = payments.filter((payment) => payment.status !== 'Voided');
+  const voidedPayments = payments.filter((payment) => payment.status === 'Voided');
 
   const renderPayment = (payment: GroupPayment) => {
     const from = membersById.get(payment.fromUserId);
     const to = membersById.get(payment.toUserId);
     const recordedBy = membersById.get(payment.recordedByUserId);
-    const voided = payment.status === 'Cancelled';
+    const voided = payment.status === 'Voided';
 
     return (
       <article key={payment.id} className={`app-card p-4 sm:p-5 ${voided ? 'opacity-70' : ''}`}>

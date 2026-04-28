@@ -1,21 +1,5 @@
-export type GroupPaymentStatus = 'Proposed' | 'PartiallyPaid' | 'Paid' | 'Cancelled';
+import type { ApiGroupPayment, ApiUser, GroupPaymentStatus } from '../../types/api';
 
-export interface GroupPayment {
-  id: string;
-  groupId: string;
-  fromUserId: string;
-  toUserId: string;
-  currency: string;
-  amount: number;
-  recordedAt: string;
-  recordedByUserId: string;
-  note?: string | null;
-  status: GroupPaymentStatus;
-}
-
-export interface PaymentMember {
-  id: string;
-  name: string;
-  email: string;
-  avatarKey?: string | null;
-}
+export type { GroupPaymentStatus };
+export type GroupPayment = ApiGroupPayment;
+export type PaymentMember = ApiUser;

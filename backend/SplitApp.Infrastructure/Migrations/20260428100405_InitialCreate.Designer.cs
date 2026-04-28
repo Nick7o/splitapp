@@ -12,8 +12,8 @@ using SplitApp.Infrastructure.Data;
 namespace SplitApp.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260426153118_AddUserAvatarAndBio")]
-    partial class AddUserAvatarAndBio
+    [Migration("20260428100405_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -35,10 +35,6 @@ namespace SplitApp.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -78,19 +74,18 @@ namespace SplitApp.Infrastructure.Migrations
                     b.Property<Guid>("GroupId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsSettlement")
-                        .HasColumnType("boolean");
-
                     b.Property<Guid>("PayerId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("SplitMethod")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasColumnType("numeric");
@@ -101,31 +96,31 @@ namespace SplitApp.Infrastructure.Migrations
 
                     b.HasIndex("PayerId");
 
-                    b.ToTable("Expenses");
+                    b.ToTable("Expenses", t =>
+                        {
+                            t.HasCheckConstraint("CK_Expenses_TotalAmount_Positive", "\"TotalAmount\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("SplitApp.Domain.Entities.ExpenseSplit", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<Guid>("ExpenseId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ExpenseId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("OwedAmount")
                         .HasColumnType("numeric");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpenseId");
+                    b.HasKey("ExpenseId", "UserId");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ExpenseSplits");
+                    b.ToTable("ExpenseSplits", t =>
+                        {
+                            t.HasCheckConstraint("CK_ExpenseSplits_OwedAmount_Positive", "\"OwedAmount\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("SplitApp.Domain.Entities.Group", b =>
@@ -138,9 +133,10 @@ namespace SplitApp.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<string>("Currency")
+                    b.Property<string>("DefaultCurrency")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(280)
@@ -148,10 +144,8 @@ namespace SplitApp.Infrastructure.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.HasKey("Id");
 
@@ -171,9 +165,73 @@ namespace SplitApp.Infrastructure.Migrations
 
                     b.HasKey("GroupId", "UserId");
 
+                    b.HasIndex("GroupId")
+                        .IsUnique()
+                        .HasFilter("\"Role\" = 2");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("GroupMembers");
+                });
+
+            modelBuilder.Entity("SplitApp.Domain.Entities.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<Guid>("FromUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RecordedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ToUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("VoidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromUserId");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("RecordedByUserId");
+
+                    b.HasIndex("ToUserId");
+
+                    b.HasIndex("VoidedByUserId");
+
+                    b.ToTable("Payments", t =>
+                        {
+                            t.HasCheckConstraint("CK_Payments_Amount_Positive", "\"Amount\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("SplitApp.Domain.Entities.User", b =>
@@ -192,19 +250,28 @@ namespace SplitApp.Infrastructure.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
 
                     b.Property<string>("GoogleId")
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("GoogleId")
+                        .IsUnique()
+                        .HasFilter("\"GoogleId\" IS NOT NULL");
 
                     b.ToTable("Users");
                 });
@@ -283,6 +350,48 @@ namespace SplitApp.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SplitApp.Domain.Entities.Payment", b =>
+                {
+                    b.HasOne("SplitApp.Domain.Entities.User", "FromUser")
+                        .WithMany()
+                        .HasForeignKey("FromUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SplitApp.Domain.Entities.Group", "Group")
+                        .WithMany("Payments")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SplitApp.Domain.Entities.User", "RecordedByUser")
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SplitApp.Domain.Entities.User", "ToUser")
+                        .WithMany()
+                        .HasForeignKey("ToUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SplitApp.Domain.Entities.User", "VoidedByUser")
+                        .WithMany()
+                        .HasForeignKey("VoidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("FromUser");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("RecordedByUser");
+
+                    b.Navigation("ToUser");
+
+                    b.Navigation("VoidedByUser");
+                });
+
             modelBuilder.Entity("SplitApp.Domain.Entities.Expense", b =>
                 {
                     b.Navigation("Splits");
@@ -293,6 +402,8 @@ namespace SplitApp.Infrastructure.Migrations
                     b.Navigation("Expenses");
 
                     b.Navigation("Members");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("SplitApp.Domain.Entities.User", b =>

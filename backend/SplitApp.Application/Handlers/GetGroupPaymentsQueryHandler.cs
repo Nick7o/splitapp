@@ -29,14 +29,13 @@ public class GetGroupPaymentsQueryHandler : IRequestHandler<GetGroupPaymentsQuer
             throw new ArgumentException("group.notMember");
         }
 
-        var payments = await _context.SettlementPayments
-            .Include(payment => payment.Settlement)
-            .Where(payment => payment.Settlement.GroupId == request.GroupId)
+        var payments = await _context.Payments
+            .Where(payment => payment.GroupId == request.GroupId)
             .OrderByDescending(payment => payment.RecordedAt)
             .Skip(request.Skip < 0 ? 0 : request.Skip)
             .Take(request.Take)
             .ToListAsync(cancellationToken);
 
-        return payments.Select(payment => PaymentMapping.ToDto(payment, payment.Settlement)).ToList();
+        return payments.Select(PaymentMapping.ToDto).ToList();
     }
 }

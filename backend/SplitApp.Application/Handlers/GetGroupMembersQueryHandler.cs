@@ -42,7 +42,7 @@ public class GetGroupMembersQueryHandler : IRequestHandler<GetGroupMembersQuery,
             Email = member.User.Email,
             AvatarKey = member.User.AvatarKey,
             Bio = member.User.Bio,
-            Role = member.Role
+            Role = (int)member.Role
         }).ToList();
     }
 }

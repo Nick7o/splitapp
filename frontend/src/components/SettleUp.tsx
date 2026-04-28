@@ -2,22 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AVATAR_BY_KEY } from '../data/avatars';
 import { formatMoney } from '../data/currencies';
+import type { ApiDebtTransfer, ApiUser } from '../types/api';
 import RecordGroupPaymentDialog from './Payments/RecordGroupPaymentDialog';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatarKey?: string | null;
-}
-
-interface RawDebtTransfer {
-  fromUserId: string;
-  toUserId: string;
-  amount: number;
-}
-
-interface DebtTransfer extends RawDebtTransfer {
+interface DebtTransfer extends ApiDebtTransfer {
   fromName: string;
   toName: string;
   fromAvatarKey?: string | null;
@@ -33,8 +21,8 @@ interface SelectedPayment {
 
 interface SettleUpProps {
   groupId: string;
-  debtsByCurrency: Record<string, RawDebtTransfer[]>;
-  members: User[];
+  debtsByCurrency: Record<string, ApiDebtTransfer[]>;
+  members: ApiUser[];
   onChanged?: () => void | Promise<void>;
 }
 

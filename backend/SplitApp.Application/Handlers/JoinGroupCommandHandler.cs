@@ -35,7 +35,7 @@ public class JoinGroupCommandHandler : IRequestHandler<JoinGroupCommand, bool>
             {
                 GroupId = request.GroupId,
                 UserId = request.UserId,
-                Role = 0 // Member
+                Role = GroupMemberRole.Member
             });
 
             await _context.SaveChangesAsync(cancellationToken);

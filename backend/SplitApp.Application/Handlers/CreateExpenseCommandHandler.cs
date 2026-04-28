@@ -1,8 +1,10 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using SplitApp.Application.Activity;
 using SplitApp.Application.Commands;
 using SplitApp.Application.Currency;
 using SplitApp.Application.Events;
+using SplitApp.Application.Expenses;
 using SplitApp.Domain.Entities;
 using SplitApp.Domain.Interfaces;
 using System;
@@ -27,25 +29,35 @@ public class CreateExpenseCommandHandler : IRequestHandler<CreateExpenseCommand,
     public async Task<Guid> Handle(CreateExpenseCommand request, CancellationToken cancellationToken)
     {
         var currency = IsoCurrencyCodes.Normalize(request.Currency);
+        var title = ExpenseValidation.NormalizeTitle(request.Title);
+        var splitMethod = ExpenseValidation.NormalizeSplitMethod(request.SplitMethod);
+        var splits = ExpenseValidation.NormalizeSplits(request.Splits, request.TotalAmount);
 
-        // Validation: Ensure total amount matches sum of splits
-        var splitsSum = request.Splits.Sum(s => s.OwedAmount);
-        if (Math.Abs(splitsSum - request.TotalAmount) > 0.01m)
+        var memberIds = await _context.GroupMembers
+            .Where(member => member.GroupId == request.GroupId)
+            .Select(member => member.UserId)
+            .ToListAsync(cancellationToken);
+
+        if (!memberIds.Contains(request.UserId))
         {
-            throw new ArgumentException("expense.splitSumMismatch");
+            throw new ArgumentException("group.notMember");
+        }
+
+        if (!memberIds.Contains(request.PayerId) || splits.Any(split => !memberIds.Contains(split.UserId)))
+        {
+            throw new ArgumentException("expense.usersNotMembers");
         }
 
         var expense = new Expense
         {
             GroupId = request.GroupId,
             PayerId = request.PayerId,
-            Title = request.Title,
+            Title = title,
             TotalAmount = request.TotalAmount,
             Currency = currency,
-            SplitMethod = request.SplitMethod,
-            IsSettlement = request.IsSettlement,
+            SplitMethod = splitMethod,
             CreatedAt = DateTime.UtcNow,
-            Splits = request.Splits.Select(s => new ExpenseSplit
+            Splits = splits.Select(s => new ExpenseSplit
             {
                 UserId = s.UserId,
                 OwedAmount = s.OwedAmount
@@ -56,19 +68,18 @@ public class CreateExpenseCommandHandler : IRequestHandler<CreateExpenseCommand,
 
         var payload = new ExpenseCreatedPayload(
             expense.Id,
-            request.Title,
+            title,
             request.TotalAmount,
             currency,
             request.PayerId,
-            request.Splits);
+            splits);
 
         var log = new ActivityLog
         {
             GroupId = request.GroupId,
-            UserId = request.PayerId,
+            UserId = request.UserId,
             ActivityType = "expense.created",
-            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options),
-            Content = $"added expense: {request.Title} ({request.TotalAmount} {currency})"
+            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options)
         };
         _context.ActivityLogs.Add(log);
 

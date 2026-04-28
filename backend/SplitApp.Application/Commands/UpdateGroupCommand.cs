@@ -10,4 +10,4 @@ public record UpdateGroupCommand(
     string Name,
     string? Description,
     string? AvatarKey,
-    string Currency) : IRequest<GroupDto>;
+    string DefaultCurrency) : IRequest<GroupDto>;

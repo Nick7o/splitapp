@@ -2,6 +2,13 @@ using System;
 
 namespace SplitApp.Domain.Entities;
 
+public enum GroupMemberRole
+{
+    Member = 0,
+    Admin = 1,
+    Owner = 2
+}
+
 public class GroupMember
 {
     public Guid GroupId { get; set; }
@@ -10,5 +17,5 @@ public class GroupMember
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
 
-    public int Role { get; set; } // 0 = Member, 1 = Admin
+    public GroupMemberRole Role { get; set; } = GroupMemberRole.Member;
 }

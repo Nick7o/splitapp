@@ -9,7 +9,7 @@ public class GroupDto
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? AvatarKey { get; set; }
-    public string Currency { get; set; } = string.Empty;
+    public string DefaultCurrency { get; set; } = string.Empty;
     public Guid OwnerId { get; set; }
     public decimal MyBalance { get; set; }
     public Dictionary<string, decimal> MyBalanceByCurrency { get; set; } = new();
@@ -63,5 +63,4 @@ public class ExpenseDto
     public string Currency { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public decimal MyShare { get; set; }
-    public bool IsSettlement { get; set; }
 }

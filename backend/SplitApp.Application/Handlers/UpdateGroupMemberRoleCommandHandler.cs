@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using SplitApp.Application.Commands;
+using SplitApp.Application.Groups;
+using SplitApp.Domain.Entities;
 using SplitApp.Domain.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -35,12 +37,12 @@ public class UpdateGroupMemberRoleCommandHandler : IRequestHandler<UpdateGroupMe
             throw new KeyNotFoundException("group.notFound");
         }
 
-        if (group.OwnerId != request.ActingUserId)
+        if (!group.IsOwner(request.ActingUserId))
         {
             throw new ArgumentException("group.onlyOwnerCan");
         }
 
-        if (group.OwnerId == request.TargetUserId)
+        if (group.GetOwnerId() == request.TargetUserId)
         {
             throw new ArgumentException("group.cannotChangeOwnerRole");
         }
@@ -51,7 +53,7 @@ public class UpdateGroupMemberRoleCommandHandler : IRequestHandler<UpdateGroupMe
             throw new KeyNotFoundException("group.memberNotFound");
         }
 
-        targetMember.Role = request.NewRole;
+        targetMember.Role = (GroupMemberRole)request.NewRole;
         await _context.SaveChangesAsync(cancellationToken);
 
         return true;

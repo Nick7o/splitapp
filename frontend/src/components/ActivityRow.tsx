@@ -167,6 +167,9 @@ const memberLabel = (id: string, memberNames: Record<string, string> | undefined
 
 const money = (amount: number, currency: string): string => formatMoney(amount, currency || 'PLN');
 
+const fallbackContent = (content: string, t: (key: string) => string): string =>
+  content || t('activityRow.detailsUnavailable');
+
 const getAmountSummary = (log: ActivityLog): string | null => {
   if (log.activityType === 'expense.created') {
     const payload = parseCreatedPayload(log.metadata);
@@ -201,26 +204,26 @@ const getActivityContent = (
     const payload = parseCreatedPayload(log.metadata);
     return payload
       ? t('activityContent.expenseCreated', { title: payload.title || t('activityRow.untitledExpense'), amount: money(payload.totalAmount, payload.currency) })
-      : log.content;
+      : fallbackContent(log.content, t);
   }
 
   if (log.activityType === 'expense.updated') {
     const payload = parseUpdatedPayload(log.metadata);
     return payload
       ? t('activityContent.expenseUpdated', { title: payload.after.title || t('activityRow.untitledExpense') })
-      : log.content;
+      : fallbackContent(log.content, t);
   }
 
   if (log.activityType === 'expense.deleted') {
     const payload = parseDeletedPayload(log.metadata);
     return payload
       ? t('activityContent.expenseDeleted', { title: payload.before.title || t('activityRow.untitledExpense') })
-      : log.content;
+      : fallbackContent(log.content, t);
   }
 
   if (log.activityType === 'payment.recorded' || log.activityType === 'payment.voided') {
     const payload = parsePaymentPayload(log.metadata);
-    if (!payload) return log.content;
+    if (!payload) return fallbackContent(log.content, t);
 
     const from = memberLabel(payload.fromUserId, memberNames, t('common.unknown'));
     const to = memberLabel(payload.toUserId, memberNames, t('common.unknown'));
@@ -231,7 +234,7 @@ const getActivityContent = (
       : t('activityContent.paymentVoided', { from, to, amount });
   }
 
-  return log.content;
+  return fallbackContent(log.content, t);
 };
 
 const sameSplits = (left: ExpenseSplit[], right: ExpenseSplit[]): boolean => {
@@ -380,8 +383,8 @@ const RawDetails: React.FC<{ content: string }> = ({ content }) => {
 
   return (
     <div className="rounded-lg bg-white/5 p-3 text-sm text-on-surface-variant">
-      <p>{content}</p>
-      <p className="mt-2 text-xs">{t('activityRow.detailsUnavailable')}</p>
+      {content ? <p>{content}</p> : null}
+      <p className={content ? 'mt-2 text-xs' : 'text-xs'}>{t('activityRow.detailsUnavailable')}</p>
     </div>
   );
 };

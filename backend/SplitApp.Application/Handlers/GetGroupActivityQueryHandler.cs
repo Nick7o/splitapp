@@ -44,7 +44,7 @@ public class GetGroupActivityQueryHandler : IRequestHandler<GetGroupActivityQuer
             Id = a.Id,
             ActivityType = a.ActivityType,
             Metadata = TryParseMetadata(a.MetadataJson),
-            Content = a.Content,
+            Content = string.Empty,
             CreatedAt = a.CreatedAt,
             UserName = a.User.Name,
             MemberNames = memberNames

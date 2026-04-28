@@ -4,4 +4,4 @@ using System;
 
 namespace SplitApp.Application.Commands;
 
-public record CreateGroupCommand(string Name, string Currency, Guid OwnerId) : IRequest<Guid>;
+public record CreateGroupCommand(string Name, string DefaultCurrency, Guid OwnerId) : IRequest<Guid>;

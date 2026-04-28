@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SplitApp.Api.Infrastructure;
 using SplitApp.Infrastructure.Data;
-using System.Globalization;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,7 +11,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
-builder.Services.AddLocalization();
 // builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(options =>
@@ -32,6 +30,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<SplitApp.Domain.Interfaces.IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 builder.Services.AddScoped<SplitApp.Application.Services.DebtOptimizationService>();
+builder.Services.AddScoped<SplitApp.Application.Services.BalanceCalculator>();
 
 // Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing");
@@ -48,6 +47,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/problem+json";
+                await context.Response.WriteAsJsonAsync(ApiProblemDetails.Create("auth.unauthorized", StatusCodes.Status401Unauthorized));
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/problem+json";
+                await context.Response.WriteAsJsonAsync(ApiProblemDetails.Create("auth.forbidden", StatusCodes.Status403Forbidden));
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -60,7 +75,6 @@ builder.Services.AddMediatR(cfg =>
 });
 
 var app = builder.Build();
-var supportedCultures = new[] { new CultureInfo("en"), new CultureInfo("pl") };
 
 // Apply pending EF Core migrations on startup so the database schema
 // always matches the model. Safe to run repeatedly; no-op if up-to-date.
@@ -77,13 +91,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-app.UseRequestLocalization(new RequestLocalizationOptions
-{
-    DefaultRequestCulture = new RequestCulture("en"),
-    SupportedCultures = supportedCultures,
-    SupportedUICultures = supportedCultures
-});
+app.UseMiddleware<ApiExceptionMiddleware>();
 
 app.UseCors("AllowReactApp");
 

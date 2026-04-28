@@ -4,6 +4,7 @@ using SplitApp.Application.Commands;
 using SplitApp.Application.Currency;
 using SplitApp.Application.DTOs;
 using SplitApp.Application.Groups;
+using SplitApp.Domain.Entities;
 using SplitApp.Domain.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -32,7 +33,7 @@ public class UpdateGroupCommandHandler : IRequestHandler<UpdateGroupCommand, Gro
             throw new KeyNotFoundException("group.notFound");
         }
 
-        if (group.OwnerId != request.ActingUserId)
+        if (!group.IsOwner(request.ActingUserId))
         {
             throw new ArgumentException("group.onlyOwnerCan");
         }
@@ -50,12 +51,12 @@ public class UpdateGroupCommandHandler : IRequestHandler<UpdateGroupCommand, Gro
         }
 
         var normalizedAvatarKey = GroupAvatarKeys.Normalize(request.AvatarKey);
-        var normalizedCurrency = IsoCurrencyCodes.Normalize(request.Currency);
+        var normalizedCurrency = IsoCurrencyCodes.Normalize(request.DefaultCurrency);
 
         group.Name = normalizedName;
         group.Description = normalizedDescription;
         group.AvatarKey = normalizedAvatarKey;
-        group.Currency = normalizedCurrency;
+        group.DefaultCurrency = normalizedCurrency;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -65,8 +66,8 @@ public class UpdateGroupCommandHandler : IRequestHandler<UpdateGroupCommand, Gro
             Name = group.Name,
             Description = group.Description,
             AvatarKey = group.AvatarKey,
-            Currency = group.Currency,
-            OwnerId = group.OwnerId,
+            DefaultCurrency = group.DefaultCurrency,
+            OwnerId = group.GetOwnerId(),
             MembersCount = group.Members.Count
         };
     }

@@ -4,8 +4,6 @@ namespace SplitApp.Domain.Entities;
 
 public class ExpenseSplit
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    
     public Guid ExpenseId { get; set; }
     public Expense Expense { get; set; } = null!;
 

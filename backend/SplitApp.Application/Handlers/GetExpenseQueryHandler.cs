@@ -40,7 +40,6 @@ public class GetExpenseQueryHandler : IRequestHandler<GetExpenseQuery, ExpenseDe
             TotalAmount = expense.TotalAmount,
             Currency = expense.Currency,
             SplitMethod = expense.SplitMethod,
-            IsSettlement = expense.IsSettlement,
             Splits = expense.Splits.Select(s => new ExpenseSplitDto(s.UserId, s.OwedAmount)).ToList()
         };
     }

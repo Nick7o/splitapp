@@ -2,17 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { formatMoney } from '../../data/currencies';
+import { getApiErrorMessage } from '../../utils/apiError';
 import CurrencyPicker from '../CurrencyPicker';
 import type { PaymentMember } from './types';
-
-interface ApiError {
-  response?: {
-    data?: {
-      detail?: string;
-      Error?: string;
-    };
-  };
-}
 
 interface RecordGroupPaymentDialogProps {
   groupId: string;
@@ -74,8 +66,7 @@ const RecordGroupPaymentDialog: React.FC<RecordGroupPaymentDialogProps> = ({
       await onRecorded();
       onClose();
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.response?.data?.detail || apiError.response?.data?.Error || t('payments.recordFailed'));
+      setError(getApiErrorMessage(err, t, 'payments.recordFailed'));
     } finally {
       setSaving(false);
     }

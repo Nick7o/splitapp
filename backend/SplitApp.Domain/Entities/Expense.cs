@@ -17,7 +17,6 @@ public class Expense
     public string Currency { get; set; } = "PLN";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string SplitMethod { get; set; } = "equally";
-    public bool IsSettlement { get; set; } = false;
 
     public ICollection<ExpenseSplit> Splits { get; set; } = new List<ExpenseSplit>();
 }

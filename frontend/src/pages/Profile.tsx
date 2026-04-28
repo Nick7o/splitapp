@@ -5,51 +5,11 @@ import AppLayout from '../components/AppLayout';
 import api from '../api';
 import { AVATAR_BY_KEY, AVATARS } from '../data/avatars';
 import { SUPPORTED_LANGUAGES, type SupportedLang } from '../i18n';
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  avatarKey?: string | null;
-  bio?: string | null;
-  hasPassword: boolean;
-}
-
-interface ApiError {
-  response?: {
-    data?: {
-      Error?: string;
-      error?: string;
-      message?: string;
-      detail?: string;
-      Code?: string;
-      code?: string;
-    };
-  };
-}
+import type { ApiUser } from '../types/api';
+import { getApiErrorMessage } from '../utils/apiError';
+import { clearAuthSession, getStoredUser, setStoredUser } from '../utils/storage';
 
 const BIO_LIMIT = 280;
-
-const getStoredUser = (): Partial<UserProfile> => {
-  try {
-    return JSON.parse(localStorage.getItem('user') || '{}');
-  } catch {
-    return {};
-  }
-};
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  const apiError = error as ApiError;
-  return (
-    apiError.response?.data?.detail ||
-    apiError.response?.data?.message ||
-    apiError.response?.data?.Error ||
-    apiError.response?.data?.error ||
-    apiError.response?.data?.Code ||
-    apiError.response?.data?.code ||
-    fallback
-  );
-};
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -76,16 +36,16 @@ const Profile: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await api.get<UserProfile>('/users/me');
+        const response = await api.get<ApiUser>('/users/me');
         const user = response.data;
         setName(user.name);
         setEmail(user.email);
         setBio(user.bio ?? '');
         setAvatarKey(user.avatarKey ?? '');
-        setHasPassword(user.hasPassword);
-        localStorage.setItem('user', JSON.stringify(user));
+        setHasPassword(user.hasPassword ?? false);
+        setStoredUser(user);
       } catch (error) {
-        setProfileError(getErrorMessage(error, t('profile.loadFailed')));
+        setProfileError(getApiErrorMessage(error, t, 'profile.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -95,8 +55,7 @@ const Profile: React.FC = () => {
   }, [t]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuthSession();
     navigate('/');
   };
 
@@ -116,7 +75,7 @@ const Profile: React.FC = () => {
 
     setSaving(true);
     try {
-      const response = await api.put<UserProfile>('/users/me', {
+      const response = await api.put<ApiUser>('/users/me', {
         name: name.trim(),
         bio: bio.trim() || null,
         avatarKey: avatarKey || null
@@ -126,11 +85,11 @@ const Profile: React.FC = () => {
       setEmail(user.email);
       setBio(user.bio ?? '');
       setAvatarKey(user.avatarKey ?? '');
-      setHasPassword(user.hasPassword);
-      localStorage.setItem('user', JSON.stringify(user));
+      setHasPassword(user.hasPassword ?? false);
+      setStoredUser(user);
       setProfileSuccess(t('profile.saved'));
     } catch (error) {
-      setProfileError(getErrorMessage(error, t('profile.saveFailed')));
+      setProfileError(getApiErrorMessage(error, t, 'profile.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -167,7 +126,7 @@ const Profile: React.FC = () => {
       setConfirmPassword('');
       setPasswordSuccess(t('profile.passwordUpdated'));
     } catch (error) {
-      setPasswordError(getErrorMessage(error, t('profile.passwordUpdateFailed')));
+      setPasswordError(getApiErrorMessage(error, t, 'profile.passwordUpdateFailed'));
     } finally {
       setPasswordSaving(false);
     }

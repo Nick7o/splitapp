@@ -15,8 +15,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<GroupMember> GroupMembers { get; set; } = null!;
     public DbSet<Expense> Expenses { get; set; } = null!;
     public DbSet<ExpenseSplit> ExpenseSplits { get; set; } = null!;
-    public DbSet<Settlement> Settlements { get; set; } = null!;
-    public DbSet<SettlementPayment> SettlementPayments { get; set; } = null!;
+    public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<ActivityLog> ActivityLogs { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -36,6 +35,25 @@ public class AppDbContext : DbContext, IAppDbContext
             .WithMany(u => u.GroupMemberships)
             .HasForeignKey(gm => gm.UserId);
 
+        modelBuilder.Entity<GroupMember>()
+            .Property(gm => gm.Role)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<GroupMember>()
+            .HasIndex(gm => gm.GroupId)
+            .HasFilter("\"Role\" = 2")
+            .IsUnique();
+
+        modelBuilder.Entity<Group>()
+            .Property(g => g.Name)
+            .IsRequired()
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<Group>()
+            .Property(g => g.DefaultCurrency)
+            .IsRequired()
+            .HasMaxLength(3);
+
         modelBuilder.Entity<Expense>()
             .HasOne(e => e.Payer)
             .WithMany(u => u.PaidExpenses)
@@ -47,11 +65,30 @@ public class AppDbContext : DbContext, IAppDbContext
             .IsRequired()
             .HasMaxLength(3);
 
+        modelBuilder.Entity<Expense>()
+            .Property(e => e.Title)
+            .IsRequired()
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<Expense>()
+            .Property(e => e.SplitMethod)
+            .IsRequired()
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<Expense>()
+            .ToTable(table => table.HasCheckConstraint("CK_Expenses_TotalAmount_Positive", "\"TotalAmount\" > 0"));
+
+        modelBuilder.Entity<ExpenseSplit>()
+            .HasKey(es => new { es.ExpenseId, es.UserId });
+
         modelBuilder.Entity<ExpenseSplit>()
             .HasOne(es => es.User)
             .WithMany(u => u.ExpenseSplits)
             .HasForeignKey(es => es.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ExpenseSplit>()
+            .ToTable(table => table.HasCheckConstraint("CK_ExpenseSplits_OwedAmount_Positive", "\"OwedAmount\" > 0"));
 
         modelBuilder.Entity<Group>()
             .Property(g => g.AvatarKey)
@@ -61,44 +98,51 @@ public class AppDbContext : DbContext, IAppDbContext
             .Property(g => g.Description)
             .HasMaxLength(280);
 
-        modelBuilder.Entity<Settlement>()
-            .HasOne(s => s.Group)
-            .WithMany()
-            .HasForeignKey(s => s.GroupId)
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Group)
+            .WithMany(g => g.Payments)
+            .HasForeignKey(p => p.GroupId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Settlement>()
-            .HasOne(s => s.FromUser)
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.FromUser)
             .WithMany()
-            .HasForeignKey(s => s.FromUserId)
+            .HasForeignKey(p => p.FromUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        modelBuilder.Entity<Settlement>()
-            .HasOne(s => s.ToUser)
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.ToUser)
             .WithMany()
-            .HasForeignKey(s => s.ToUserId)
+            .HasForeignKey(p => p.ToUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        modelBuilder.Entity<Settlement>()
-            .Property(s => s.Currency)
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.RecordedByUser)
+            .WithMany()
+            .HasForeignKey(p => p.RecordedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.VoidedByUser)
+            .WithMany()
+            .HasForeignKey(p => p.VoidedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.Status)
+            .HasConversion<int>();
+
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.Currency)
             .IsRequired()
             .HasMaxLength(3);
 
-        modelBuilder.Entity<Settlement>()
-            .Property(s => s.Note)
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.Note)
             .HasMaxLength(280);
 
-        modelBuilder.Entity<SettlementPayment>()
-            .HasOne(sp => sp.Settlement)
-            .WithMany(s => s.Payments)
-            .HasForeignKey(sp => sp.SettlementId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<SettlementPayment>()
-            .HasOne(sp => sp.RecordedByUser)
-            .WithMany()
-            .HasForeignKey(sp => sp.RecordedByUserId)
-            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Payment>()
+            .ToTable(table => table.HasCheckConstraint("CK_Payments_Amount_Positive", "\"Amount\" > 0"));
 
         modelBuilder.Entity<User>()
             .Property(u => u.AvatarKey)
@@ -107,6 +151,25 @@ public class AppDbContext : DbContext, IAppDbContext
         modelBuilder.Entity<User>()
             .Property(u => u.Bio)
             .HasMaxLength(280);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.Name)
+            .IsRequired()
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.Email)
+            .IsRequired()
+            .HasMaxLength(320);
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.GoogleId)
+            .IsUnique()
+            .HasFilter("\"GoogleId\" IS NOT NULL");
 
         modelBuilder.Entity<ActivityLog>()
             .Property(a => a.ActivityType)

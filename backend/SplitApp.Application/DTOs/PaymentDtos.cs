@@ -12,6 +12,8 @@ public class GroupPaymentDto
     public decimal Amount { get; set; }
     public DateTime RecordedAt { get; set; }
     public Guid RecordedByUserId { get; set; }
+    public DateTime? VoidedAt { get; set; }
+    public Guid? VoidedByUserId { get; set; }
     public string? Note { get; set; }
     public string Status { get; set; } = string.Empty;
 }

@@ -9,9 +9,9 @@ public class Group
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? AvatarKey { get; set; }
-    public string Currency { get; set; } = "PLN";
-    public Guid OwnerId { get; set; }
+    public string DefaultCurrency { get; set; } = "PLN";
 
     public ICollection<GroupMember> Members { get; set; } = new List<GroupMember>();
     public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
+    public ICollection<Payment> Payments { get; set; } = new List<Payment>();
 }

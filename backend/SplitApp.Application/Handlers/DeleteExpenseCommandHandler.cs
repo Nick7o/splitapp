@@ -28,9 +28,16 @@ public class DeleteExpenseCommandHandler : IRequestHandler<DeleteExpenseCommand,
     {
         var expense = await _context.Expenses
             .Include(e => e.Splits)
+            .Include(e => e.Group)
+            .ThenInclude(g => g.Members)
             .FirstOrDefaultAsync(e => e.Id == request.ExpenseId && e.GroupId == request.GroupId, cancellationToken);
 
         if (expense == null) return false;
+
+        if (!expense.Group.Members.Any(member => member.UserId == request.UserId))
+        {
+            throw new ArgumentException("group.notMember");
+        }
 
         var before = new ExpenseSnapshot(
             expense.Title,
@@ -51,8 +58,7 @@ public class DeleteExpenseCommandHandler : IRequestHandler<DeleteExpenseCommand,
             GroupId = request.GroupId,
             UserId = request.UserId,
             ActivityType = "expense.deleted",
-            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options),
-            Content = $"deleted expense: {expense.Title}"
+            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options)
         };
         _context.ActivityLogs.Add(log);
 

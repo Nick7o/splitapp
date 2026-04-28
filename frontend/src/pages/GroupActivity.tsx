@@ -4,15 +4,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ActivityRow, { type ActivityLog } from '../components/ActivityRow';
 import AppLayout from '../components/AppLayout';
-
-interface GroupMember {
-  id: string;
-  name: string;
-}
-
-interface GroupDetails {
-  members?: GroupMember[];
-}
+import type { ApiGroupDetails } from '../types/api';
 
 const PAGE_SIZE = 50;
 
@@ -33,7 +25,7 @@ const GroupActivity: React.FC = () => {
           api.get<ActivityLog[]>(`/groups/${id}/activity`, {
             params: { skip: 0, take: PAGE_SIZE }
           }),
-          api.get<GroupDetails>(`/groups/${id}`)
+          api.get<ApiGroupDetails>(`/groups/${id}`)
         ]);
         setLogs(activityResponse.data);
         setSkip(activityResponse.data.length);

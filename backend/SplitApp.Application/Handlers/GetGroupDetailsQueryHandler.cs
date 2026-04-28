@@ -1,9 +1,9 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using SplitApp.Application.DTOs;
+using SplitApp.Application.Groups;
 using SplitApp.Application.Queries;
 using SplitApp.Application.Services;
-using SplitApp.Domain.Entities;
 using SplitApp.Domain.Interfaces;
 using System.Linq;
 using System.Threading;
@@ -15,11 +15,16 @@ public class GetGroupDetailsQueryHandler : IRequestHandler<GetGroupDetailsQuery,
 {
     private readonly IAppDbContext _context;
     private readonly DebtOptimizationService _debtOptimizationService;
+    private readonly BalanceCalculator _balanceCalculator;
 
-    public GetGroupDetailsQueryHandler(IAppDbContext context, DebtOptimizationService debtOptimizationService)
+    public GetGroupDetailsQueryHandler(
+        IAppDbContext context,
+        DebtOptimizationService debtOptimizationService,
+        BalanceCalculator balanceCalculator)
     {
         _context = context;
         _debtOptimizationService = debtOptimizationService;
+        _balanceCalculator = balanceCalculator;
     }
 
     public async Task<GroupDetailsDto?> Handle(GetGroupDetailsQuery request, CancellationToken cancellationToken)
@@ -31,85 +36,22 @@ public class GetGroupDetailsQueryHandler : IRequestHandler<GetGroupDetailsQuery,
                 .ThenInclude(e => e.Splits)
             .FirstOrDefaultAsync(g => g.Id == request.GroupId, cancellationToken);
 
-        if (group == null) return null;
-
-        // Check if user is member
-        if (!group.Members.Any(m => m.UserId == request.UserId)) return null;
-
-        var balancesByCurrency = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<System.Guid, decimal>>(System.StringComparer.Ordinal);
-
-        foreach (var expense in group.Expenses)
+        if (group is null || !group.IsMember(request.UserId))
         {
-            var currency = string.IsNullOrWhiteSpace(expense.Currency) ? group.Currency : expense.Currency;
-            if (!balancesByCurrency.TryGetValue(currency, out var currencyBalances))
-            {
-                currencyBalances = new System.Collections.Generic.Dictionary<System.Guid, decimal>();
-                foreach (var member in group.Members)
-                {
-                    currencyBalances[member.UserId] = 0m;
-                }
-
-                balancesByCurrency[currency] = currencyBalances;
-            }
-
-            if (currencyBalances.ContainsKey(expense.PayerId))
-            {
-                currencyBalances[expense.PayerId] += expense.TotalAmount;
-            }
-
-            foreach (var split in expense.Splits)
-            {
-                if (currencyBalances.ContainsKey(split.UserId))
-                {
-                    currencyBalances[split.UserId] -= split.OwedAmount;
-                }
-            }
+            return null;
         }
 
-        var paidSettlements = await _context.Settlements
-            .Where(settlement =>
-                settlement.GroupId == request.GroupId &&
-                settlement.PaidAmount > 0 &&
-                (settlement.Status == SettlementStatus.PartiallyPaid || settlement.Status == SettlementStatus.Paid))
+        var payments = await _context.Payments
+            .Where(payment => payment.GroupId == request.GroupId)
             .ToListAsync(cancellationToken);
 
-        foreach (var settlement in paidSettlements)
-        {
-            if (!balancesByCurrency.TryGetValue(settlement.Currency, out var currencyBalances))
-            {
-                currencyBalances = new System.Collections.Generic.Dictionary<System.Guid, decimal>();
-                foreach (var member in group.Members)
-                {
-                    currencyBalances[member.UserId] = 0m;
-                }
-
-                balancesByCurrency[settlement.Currency] = currencyBalances;
-            }
-
-            if (currencyBalances.ContainsKey(settlement.FromUserId))
-            {
-                currencyBalances[settlement.FromUserId] += settlement.PaidAmount;
-            }
-
-            if (currencyBalances.ContainsKey(settlement.ToUserId))
-            {
-                currencyBalances[settlement.ToUserId] -= settlement.PaidAmount;
-            }
-        }
-
-        if (balancesByCurrency.Count == 0)
-        {
-            balancesByCurrency[group.Currency] = group.Members.ToDictionary(m => m.UserId, _ => 0m);
-        }
-
-        var myBalanceByCurrency = balancesByCurrency.ToDictionary(
-            b => b.Key,
-            b => b.Value.TryGetValue(request.UserId, out var amount) ? amount : 0m);
-
+        var balanceSnapshot = _balanceCalculator.Calculate(group, payments);
+        var balancesByCurrency = balanceSnapshot.BalancesByCurrency;
+        var myBalanceByCurrency = balanceSnapshot.GetUserBalances(request.UserId);
         var myBalance = myBalanceByCurrency.Values.Sum();
         var optimizedDebtsByCurrency = _debtOptimizationService.OptimizeDebts(
-            balancesByCurrency.Select(b => (b.Key, b.Value)));
-        var flattenedOptimizedDebts = optimizedDebtsByCurrency.Values.SelectMany(x => x).ToList();
+            balancesByCurrency.Select(balance => (balance.Key, balance.Value)));
+        var flattenedOptimizedDebts = optimizedDebtsByCurrency.Values.SelectMany(debts => debts).ToList();
 
         return new GroupDetailsDto
         {
@@ -117,47 +59,49 @@ public class GetGroupDetailsQueryHandler : IRequestHandler<GetGroupDetailsQuery,
             Name = group.Name,
             Description = group.Description,
             AvatarKey = group.AvatarKey,
-            Currency = group.Currency,
-            OwnerId = group.OwnerId,
+            DefaultCurrency = group.DefaultCurrency,
+            OwnerId = group.GetOwnerId(),
             MyBalance = myBalance,
             MyBalanceByCurrency = myBalanceByCurrency,
             BalancesByCurrency = balancesByCurrency,
-            Members = group.Members.Select(m => new UserDto
+            Members = group.Members.Select(member => new UserDto
             {
-                Id = m.User.Id,
-                Name = m.User.Name,
-                Email = m.User.Email,
-                AvatarKey = m.User.AvatarKey,
-                Bio = m.User.Bio
+                Id = member.User.Id,
+                Name = member.User.Name,
+                Email = member.User.Email,
+                AvatarKey = member.User.AvatarKey,
+                Bio = member.User.Bio
             }).ToList(),
-            Expenses = group.Expenses.Select(e =>
+            Expenses = group.Expenses.Select(expense =>
             {
-                var currency = string.IsNullOrWhiteSpace(e.Currency) ? group.Currency : e.Currency;
+                var currency = string.IsNullOrWhiteSpace(expense.Currency)
+                    ? group.DefaultCurrency
+                    : expense.Currency;
+
                 return new ExpenseDto
                 {
-                    Id = e.Id,
-                    PayerId = e.PayerId,
-                    Title = e.Title,
-                    TotalAmount = e.TotalAmount,
+                    Id = expense.Id,
+                    PayerId = expense.PayerId,
+                    Title = expense.Title,
+                    TotalAmount = expense.TotalAmount,
                     Currency = currency,
-                    CreatedAt = e.CreatedAt,
-                    IsSettlement = e.IsSettlement,
-                    MyShare = e.Splits.FirstOrDefault(s => s.UserId == request.UserId)?.OwedAmount ?? 0
+                    CreatedAt = expense.CreatedAt,
+                    MyShare = expense.Splits.FirstOrDefault(split => split.UserId == request.UserId)?.OwedAmount ?? 0m
                 };
-            }).OrderByDescending(e => e.CreatedAt).ToList(),
-            OptimizedDebts = flattenedOptimizedDebts.Select(d => new DebtTransferDto
+            }).OrderByDescending(expense => expense.CreatedAt).ToList(),
+            OptimizedDebts = flattenedOptimizedDebts.Select(debt => new DebtTransferDto
             {
-                FromUserId = d.FromUserId,
-                ToUserId = d.ToUserId,
-                Amount = d.Amount
+                FromUserId = debt.FromUserId,
+                ToUserId = debt.ToUserId,
+                Amount = debt.Amount
             }).ToList(),
             OptimizedDebtsByCurrency = optimizedDebtsByCurrency.ToDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value.Select(d => new DebtTransferDto
+                entry => entry.Key,
+                entry => entry.Value.Select(debt => new DebtTransferDto
                 {
-                    FromUserId = d.FromUserId,
-                    ToUserId = d.ToUserId,
-                    Amount = d.Amount
+                    FromUserId = debt.FromUserId,
+                    ToUserId = debt.ToUserId,
+                    Amount = debt.Amount
                 }).ToList())
         };
     }

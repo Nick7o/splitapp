@@ -1,41 +1,53 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense, lazy, type ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import './i18n'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import GroupDetails from './pages/GroupDetails'
-import AddExpense from './pages/AddExpense'
-import JoinGroup from './pages/JoinGroup'
-import Activity from './pages/Activity'
-import Profile from './pages/Profile'
 import ProtectedRoute from './components/ProtectedRoute'
 import { CreateGroupModalProvider } from './context/CreateGroupModalContext'
 
-import SettleUpPage from './pages/SettleUpPage'
-import GroupActivity from './pages/GroupActivity'
-import GroupSettings from './pages/GroupSettings'
+const Login = lazy(() => import('./pages/Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const GroupDetails = lazy(() => import('./pages/GroupDetails'))
+const AddExpense = lazy(() => import('./pages/AddExpense'))
+const JoinGroup = lazy(() => import('./pages/JoinGroup'))
+const Activity = lazy(() => import('./pages/Activity'))
+const Profile = lazy(() => import('./pages/Profile'))
+const SettleUpPage = lazy(() => import('./pages/SettleUpPage'))
+const GroupActivity = lazy(() => import('./pages/GroupActivity'))
+const GroupSettings = lazy(() => import('./pages/GroupSettings'))
+
+const pageFallback = (
+  <div className="flex min-h-screen items-center justify-center bg-background text-sm font-semibold text-on-surface-variant">
+    Loading...
+  </div>
+)
+
+const page = (element: ReactElement) => (
+  <Suspense fallback={pageFallback}>{element}</Suspense>
+)
+
+const protectedPage = (element: ReactElement) => (
+  <ProtectedRoute>{page(element)}</ProtectedRoute>
+)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <CreateGroupModalProvider>
         <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/groups" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/groups/:id" element={<ProtectedRoute><GroupDetails /></ProtectedRoute>} />
-          <Route path="/groups/:id/activity" element={<ProtectedRoute><GroupActivity /></ProtectedRoute>} />
-          <Route path="/groups/:id/settings" element={<ProtectedRoute><GroupSettings /></ProtectedRoute>} />
-          <Route path="/groups/:id/settle" element={<ProtectedRoute><SettleUpPage /></ProtectedRoute>} />
-          <Route path="/groups/:id/add-expense" element={<ProtectedRoute><AddExpense /></ProtectedRoute>} />
-          <Route path="/groups/:id/edit-expense/:expenseId" element={<ProtectedRoute><AddExpense /></ProtectedRoute>} />
-          {/* JoinGroup also needs to be accessible so it can redirect to login if needed, or we can protect it. 
-              Actually, JoinGroup has its own logic for handling 401s, but protecting it is safer. */}
-          <Route path="/groups/:id/join" element={<ProtectedRoute><JoinGroup /></ProtectedRoute>} />
+          <Route path="/" element={page(<Login />)} />
+          <Route path="/dashboard" element={protectedPage(<Dashboard />)} />
+          <Route path="/groups" element={protectedPage(<Dashboard />)} />
+          <Route path="/activity" element={protectedPage(<Activity />)} />
+          <Route path="/profile" element={protectedPage(<Profile />)} />
+          <Route path="/groups/:id" element={protectedPage(<GroupDetails />)} />
+          <Route path="/groups/:id/activity" element={protectedPage(<GroupActivity />)} />
+          <Route path="/groups/:id/settings" element={protectedPage(<GroupSettings />)} />
+          <Route path="/groups/:id/settle" element={protectedPage(<SettleUpPage />)} />
+          <Route path="/groups/:id/add-expense" element={protectedPage(<AddExpense />)} />
+          <Route path="/groups/:id/edit-expense/:expenseId" element={protectedPage(<AddExpense />)} />
+          <Route path="/groups/:id/join" element={protectedPage(<JoinGroup />)} />
         </Routes>
       </CreateGroupModalProvider>
     </BrowserRouter>

@@ -4,48 +4,16 @@ import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 import CurrencyPicker from '../components/CurrencyPicker';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface GroupDetails {
-  id: string;
-  name: string;
-  members: User[];
-}
-
-interface ExpenseSplit {
-  userId: string;
-  owedAmount: number;
-}
-
-interface ExpenseDetails {
-  totalAmount: number;
-  title: string;
-  payerId: string;
-  currency?: string;
-  Currency?: string;
-  splits: ExpenseSplit[];
-}
-
-interface ApiError {
-  response?: {
-    data?: {
-      Error?: string;
-      detail?: string;
-    };
-  };
-}
+import type { ApiExpenseDetails, ApiGroupDetails, ApiUser } from '../types/api';
+import { getApiErrorMessage } from '../utils/apiError';
+import { getRecentCurrencies, getStoredUser, pushRecentCurrency } from '../utils/storage';
 
 const AddExpense: React.FC = () => {
   const { id, expenseId } = useParams<{ id: string; expenseId?: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   
-  const [group, setGroup] = useState<GroupDetails | null>(null);
+  const [group, setGroup] = useState<ApiGroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,34 +27,25 @@ const AddExpense: React.FC = () => {
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({}); // Stores percentages or exact amounts
 
-  const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}') as Partial<User>, []);
+  const currentUser = useMemo(() => getStoredUser() as Partial<ApiUser>, []);
   const currentUserId = currentUser.id;
 
   useEffect(() => {
-    const storedRecent = localStorage.getItem('splitapp:recent-currencies');
-    let parsedRecentCurrencies: string[] = [];
-    if (storedRecent) {
-      try {
-        const parsed = JSON.parse(storedRecent) as string[];
-        parsedRecentCurrencies = parsed.filter((item): item is string => typeof item === 'string').slice(0, 5);
-        setRecentCurrencies(parsedRecentCurrencies);
-      } catch {
-        setRecentCurrencies([]);
-      }
-    }
+    const parsedRecentCurrencies = getRecentCurrencies();
+    setRecentCurrencies(parsedRecentCurrencies);
 
     const fetchData = async () => {
       try {
-        const groupRes = await api.get(`/groups/${id}`);
+        const groupRes = await api.get<ApiGroupDetails>(`/groups/${id}`);
         setGroup(groupRes.data);
         
         if (expenseId) {
-          const expenseRes = await api.get(`/expenses/${expenseId}`);
-          const exp = expenseRes.data as ExpenseDetails;
+          const expenseRes = await api.get<ApiExpenseDetails>(`/expenses/${expenseId}`);
+          const exp = expenseRes.data;
           setAmount(exp.totalAmount.toString());
           setDescription(exp.title);
           setPayerId(exp.payerId);
-          setCurrency(exp.currency || exp.Currency || parsedRecentCurrencies[0] || 'PLN');
+          setCurrency(exp.currency || parsedRecentCurrencies[0] || groupRes.data.defaultCurrency || 'PLN');
           
           // Determine split method based on data
           // For simplicity, we can default to 'exact' when editing if it's not a perfect equal split
@@ -109,9 +68,9 @@ const AddExpense: React.FC = () => {
           
         } else {
           setPayerId(currentUserId || '');
-          setCurrency(parsedRecentCurrencies[0] || 'PLN');
+          setCurrency(parsedRecentCurrencies[0] || groupRes.data.defaultCurrency || 'PLN');
           // By default, select all members for the split
-          const allMemberIds = new Set<string>(groupRes.data.members.map((m: User) => m.id));
+          const allMemberIds = new Set<string>(groupRes.data.members.map((m: ApiUser) => m.id));
           setSelectedMembers(allMemberIds);
         }
       } catch (error) {
@@ -209,14 +168,12 @@ const AddExpense: React.FC = () => {
         await api.post('/expenses', payload);
       }
 
-      const updatedRecent = [currency, ...recentCurrencies.filter((item) => item !== currency)].slice(0, 5);
+      const updatedRecent = pushRecentCurrency(currency);
       setRecentCurrencies(updatedRecent);
-      localStorage.setItem('splitapp:recent-currencies', JSON.stringify(updatedRecent));
       navigate(`/groups/${id}`);
     } catch (error: unknown) {
       console.error('Failed to save expense', error);
-      const apiError = error as ApiError;
-      alert(apiError.response?.data?.detail || apiError.response?.data?.Error || t('addExpense.saveFailed'));
+      alert(getApiErrorMessage(error, t, 'addExpense.saveFailed'));
     } finally {
       setSubmitting(false);
     }

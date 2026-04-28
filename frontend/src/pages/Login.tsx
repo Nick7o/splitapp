@@ -3,30 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
+import type { ApiUser } from '../types/api';
+import { getApiErrorMessage } from '../utils/apiError';
+import { clearRedirectAfterLogin, getRedirectAfterLogin, setAuthSession } from '../utils/storage';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  avatarKey?: string | null;
-  bio?: string | null;
-  hasPassword?: boolean;
-}
-
 interface AuthResponse {
   token: string;
-  user: AuthUser;
-}
-
-interface ApiError {
-  response?: {
-    data?: {
-      message?: string;
-      detail?: string;
-    };
-  };
+  user: ApiUser;
 }
 
 const Login: React.FC = () => {
@@ -38,13 +23,12 @@ const Login: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
 
-  const handleAuthSuccess = (token: string, user: AuthUser) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+  const handleAuthSuccess = (token: string, user: ApiUser) => {
+    setAuthSession(token, user);
     
-    const redirectUrl = localStorage.getItem('redirectAfterLogin');
+    const redirectUrl = getRedirectAfterLogin();
     if (redirectUrl) {
-      localStorage.removeItem('redirectAfterLogin');
+      clearRedirectAfterLogin();
       navigate(redirectUrl);
     } else {
       navigate('/dashboard');
@@ -77,8 +61,7 @@ const Login: React.FC = () => {
       }
     } catch (err: unknown) {
       console.error('Auth failed', err);
-      const apiError = err as ApiError;
-      setError(apiError.response?.data?.detail || apiError.response?.data?.message || t('login.authFailed'));
+      setError(getApiErrorMessage(err, t, 'login.authFailed'));
     }
   };
 

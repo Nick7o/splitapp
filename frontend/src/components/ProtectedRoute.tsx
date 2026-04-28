@@ -1,12 +1,13 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { getToken, setRedirectAfterLogin } from '../utils/storage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   const location = useLocation();
 
   if (!token) {
@@ -14,7 +15,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     // trying to go to when they were redirected. This allows us to send them
     // along to that page after they login, which is a nicer user experience
     // than dropping them off on the home page.
-    localStorage.setItem('redirectAfterLogin', location.pathname);
+    setRedirectAfterLogin(location.pathname);
     return <Navigate to="/" replace />;
   }
 

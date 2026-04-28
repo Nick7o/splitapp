@@ -3,14 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
+import type { ApiProblemDetails } from '../types/api';
+import { getApiErrorMessage } from '../utils/apiError';
+import { setRedirectAfterLogin } from '../utils/storage';
 
 interface ApiError {
   response?: {
     status?: number;
-    data?: {
-      Error?: string;
-      detail?: string;
-    };
+    data?: ApiProblemDetails;
   };
 }
 
@@ -30,11 +30,10 @@ const JoinGroup: React.FC = () => {
         console.error('Failed to join group', err);
         const apiError = err as ApiError;
         if (apiError.response?.status === 401) {
-          // Not logged in, redirect to login and save intended destination
-          localStorage.setItem('redirectAfterLogin', `/groups/${id}/join`);
+          setRedirectAfterLogin(`/groups/${id}/join`);
           navigate('/');
         } else {
-          setError(apiError.response?.data?.detail || apiError.response?.data?.Error || t('joinGroup.failed'));
+          setError(getApiErrorMessage(err, t, 'joinGroup.failed'));
           setLoading(false);
         }
       }

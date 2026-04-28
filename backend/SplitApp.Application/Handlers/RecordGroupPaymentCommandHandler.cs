@@ -54,31 +54,20 @@ public class RecordGroupPaymentCommandHandler : IRequestHandler<RecordGroupPayme
             throw new ArgumentException("payment.usersNotMembers");
         }
 
-        var now = DateTime.UtcNow;
-        var settlement = new Settlement
+        var payment = new Payment
         {
             GroupId = request.GroupId,
             FromUserId = request.FromUserId,
             ToUserId = request.ToUserId,
-            TotalAmount = request.Amount,
-            PaidAmount = request.Amount,
-            Currency = currency,
-            Status = SettlementStatus.Paid,
-            CreatedAt = now,
-            ResolvedAt = now,
-            Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim()
-        };
-
-        var payment = new SettlementPayment
-        {
-            Settlement = settlement,
             Amount = request.Amount,
-            RecordedByUserId = request.ActingUserId,
-            RecordedAt = now
+            Currency = currency,
+            Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+            Status = PaymentStatus.Recorded,
+            RecordedAt = DateTime.UtcNow,
+            RecordedByUserId = request.ActingUserId
         };
 
-        _context.Settlements.Add(settlement);
-        _context.SettlementPayments.Add(payment);
+        _context.Payments.Add(payment);
 
         var payload = new PaymentRecordedPayload(
             payment.Id,
@@ -86,20 +75,19 @@ public class RecordGroupPaymentCommandHandler : IRequestHandler<RecordGroupPayme
             request.ToUserId,
             request.Amount,
             currency,
-            settlement.Note);
+            payment.Note);
 
         _context.ActivityLogs.Add(new ActivityLog
         {
             GroupId = request.GroupId,
             UserId = request.ActingUserId,
             ActivityType = "payment.recorded",
-            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options),
-            Content = $"recorded payment: {request.Amount} {currency}"
+            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options)
         });
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _mediator.Publish(new SettlementUpdatedEvent(settlement.GroupId, settlement.Id, settlement.Status.ToString()), cancellationToken);
+        await _mediator.Publish(new PaymentUpdatedEvent(payment.GroupId, payment.Id, payment.Status.ToString()), cancellationToken);
 
-        return PaymentMapping.ToDto(payment, settlement);
+        return PaymentMapping.ToDto(payment);
     }
 }

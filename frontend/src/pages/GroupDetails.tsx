@@ -9,85 +9,10 @@ import PaymentsTab from '../components/Payments/PaymentsTab';
 import api, { API_ORIGIN } from '../api';
 import { formatMoney } from '../data/currencies';
 import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
+import type { ApiGroupDetails } from '../types/api';
+import { getStoredUser } from '../utils/storage';
 
 const EXPENSE_PAGE_SIZE = 30;
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatarKey?: string | null;
-  bio?: string | null;
-}
-
-interface Expense {
-  id: string;
-  title: string;
-  totalAmount: number;
-  currency: string;
-  payerId: string;
-  createdAt: string;
-  myShare: number;
-}
-
-interface RawExpense extends Omit<Expense, 'currency'> {
-  currency?: string;
-  Currency?: string;
-}
-
-interface RawGroupDetails extends Omit<GroupDetails, 'expenses' | 'myBalanceByCurrency' | 'balancesByCurrency' | 'optimizedDebtsByCurrency'> {
-  avatarKey?: string | null;
-  AvatarKey?: string | null;
-  description?: string | null;
-  Description?: string | null;
-  expenses: RawExpense[];
-  Expenses?: RawExpense[];
-  myBalanceByCurrency?: Record<string, number>;
-  MyBalanceByCurrency?: Record<string, number>;
-  balancesByCurrency?: Record<string, Record<string, number>>;
-  BalancesByCurrency?: Record<string, Record<string, number>>;
-  optimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
-  OptimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
-}
-
-interface DebtTransfer {
-  fromUserId: string;
-  toUserId: string;
-  amount: number;
-}
-
-interface GroupDetails {
-  id: string;
-  name: string;
-  avatarKey?: string | null;
-  description?: string | null;
-  currency?: string;
-  ownerId: string;
-  myBalance: number;
-  myBalanceByCurrency?: Record<string, number>;
-  balancesByCurrency?: Record<string, Record<string, number>>;
-  members: User[];
-  expenses: Expense[];
-  optimizedDebts: DebtTransfer[];
-  optimizedDebtsByCurrency?: Record<string, DebtTransfer[]>;
-}
-
-const normalizeGroupDetails = (raw: RawGroupDetails): GroupDetails => {
-  const rawExpenses = raw.expenses ?? raw.Expenses ?? [];
-
-  return {
-    ...raw,
-    avatarKey: raw.avatarKey ?? raw.AvatarKey ?? null,
-    description: raw.description ?? raw.Description ?? null,
-    myBalanceByCurrency: raw.myBalanceByCurrency ?? raw.MyBalanceByCurrency ?? {},
-    balancesByCurrency: raw.balancesByCurrency ?? raw.BalancesByCurrency ?? {},
-    optimizedDebtsByCurrency: raw.optimizedDebtsByCurrency ?? raw.OptimizedDebtsByCurrency ?? {},
-    expenses: rawExpenses.map((expense) => ({
-      ...expense,
-      currency: expense.currency ?? expense.Currency ?? 'PLN'
-    }))
-  };
-};
 
 const isExpectedSignalRStartAbort = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
@@ -102,17 +27,17 @@ const GroupDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'payments'>('expenses');
-  const [group, setGroup] = useState<GroupDetails | null>(null);
+  const [group, setGroup] = useState<ApiGroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [settlementsRefreshKey, setSettlementsRefreshKey] = useState(0);
+  const [paymentsRefreshKey, setPaymentsRefreshKey] = useState(0);
   const [visibleExpenseCount, setVisibleExpenseCount] = useState(EXPENSE_PAGE_SIZE);
 
   const fetchGroupDetails = useCallback(async () => {
     if (!id) return;
 
     try {
-      const response = await api.get(`/groups/${id}`);
-      setGroup(normalizeGroupDetails(response.data));
+      const response = await api.get<ApiGroupDetails>(`/groups/${id}`);
+      setGroup(response.data);
     } catch (error) {
       console.error('Failed to fetch group details', error);
     } finally {
@@ -144,9 +69,9 @@ const GroupDetailsPage: React.FC = () => {
         fetchGroupDetails();
       });
 
-      connection.on('SettlementUpdated', () => {
+      connection.on('PaymentUpdated', () => {
         fetchGroupDetails();
-        setSettlementsRefreshKey((key) => key + 1);
+        setPaymentsRefreshKey((key) => key + 1);
       });
 
       try {
@@ -177,9 +102,9 @@ const GroupDetailsPage: React.FC = () => {
     };
   }, [fetchGroupDetails, id]);
 
-  const handleSettlementChanged = useCallback(async () => {
+  const handlePaymentsChanged = useCallback(async () => {
     await fetchGroupDetails();
-    setSettlementsRefreshKey((key) => key + 1);
+    setPaymentsRefreshKey((key) => key + 1);
   }, [fetchGroupDetails]);
 
   if (loading) {
@@ -199,7 +124,7 @@ const GroupDetailsPage: React.FC = () => {
   }
 
   const getPayerName = (payerId: string) => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = getStoredUser();
     if (payerId === user.id) return t('common.me');
     const member = group.members.find(m => m.id === payerId);
     return member ? member.name : t('common.unknown');
@@ -208,13 +133,7 @@ const GroupDetailsPage: React.FC = () => {
   const balanceEntries = Object.entries(group.myBalanceByCurrency ?? {});
   const visibleBalanceEntries = balanceEntries.filter(([, amount]) => Math.abs(amount) > 0.0001);
   const groupAvatar = group.avatarKey ? GROUP_AVATAR_BY_KEY[group.avatarKey] : null;
-  const currentUserId = (() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}').id ?? '';
-    } catch {
-      return '';
-    }
-  })();
+  const currentUserId = getStoredUser().id ?? '';
   const tabItems: Array<{ id: 'expenses' | 'balances' | 'payments'; label: string; shortLabel: string; icon: string }> = [
     { id: 'expenses', label: t('groupDetails.expenses'), shortLabel: t('groupDetails.expensesShort'), icon: 'receipt_long' },
     { id: 'balances', label: t('groupDetails.balances'), shortLabel: t('groupDetails.balancesShort'), icon: 'account_balance_wallet' },
@@ -411,16 +330,16 @@ const GroupDetailsPage: React.FC = () => {
             balancesByCurrency={group.balancesByCurrency || {}}
             debtsByCurrency={group.optimizedDebtsByCurrency || {}}
             currentUserId={currentUserId}
-            fallbackCurrency={group.currency || 'PLN'}
-            onSettlementCreated={handleSettlementChanged}
+            fallbackCurrency={group.defaultCurrency || 'PLN'}
+            onPaymentsChanged={handlePaymentsChanged}
           />
         ) : (
           <PaymentsTab
             groupId={id || ''}
             members={group.members}
-            fallbackCurrency={group.currency || 'PLN'}
-            refreshKey={settlementsRefreshKey}
-            onChanged={handleSettlementChanged}
+            fallbackCurrency={group.defaultCurrency || 'PLN'}
+            refreshKey={paymentsRefreshKey}
+            onChanged={handlePaymentsChanged}
           />
         )}
       {/* Floating Action Button for Adding Expense (Mobile) */}

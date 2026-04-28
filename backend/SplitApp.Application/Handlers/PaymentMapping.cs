@@ -5,20 +5,22 @@ namespace SplitApp.Application.Handlers;
 
 internal static class PaymentMapping
 {
-    public static GroupPaymentDto ToDto(SettlementPayment payment, Settlement settlement)
+    public static GroupPaymentDto ToDto(Payment payment)
     {
         return new GroupPaymentDto
         {
             Id = payment.Id,
-            GroupId = settlement.GroupId,
-            FromUserId = settlement.FromUserId,
-            ToUserId = settlement.ToUserId,
-            Currency = settlement.Currency,
+            GroupId = payment.GroupId,
+            FromUserId = payment.FromUserId,
+            ToUserId = payment.ToUserId,
+            Currency = payment.Currency,
             Amount = payment.Amount,
             RecordedAt = payment.RecordedAt,
             RecordedByUserId = payment.RecordedByUserId,
-            Note = settlement.Note,
-            Status = settlement.Status.ToString()
+            VoidedAt = payment.VoidedAt,
+            VoidedByUserId = payment.VoidedByUserId,
+            Note = payment.Note,
+            Status = payment.Status.ToString()
         };
     }
 }

@@ -4,6 +4,7 @@ using SplitApp.Application.Activity;
 using SplitApp.Application.Commands;
 using SplitApp.Application.Currency;
 using SplitApp.Application.Events;
+using SplitApp.Application.Expenses;
 using SplitApp.Domain.Entities;
 using SplitApp.Domain.Interfaces;
 using System;
@@ -28,6 +29,9 @@ public class UpdateExpenseCommandHandler : IRequestHandler<UpdateExpenseCommand,
     public async Task<bool> Handle(UpdateExpenseCommand request, CancellationToken cancellationToken)
     {
         var currency = IsoCurrencyCodes.Normalize(request.Currency);
+        var title = ExpenseValidation.NormalizeTitle(request.Title);
+        var splitMethod = ExpenseValidation.NormalizeSplitMethod(request.SplitMethod);
+        var splits = ExpenseValidation.NormalizeSplits(request.Splits, request.TotalAmount);
 
         var expense = await _context.Expenses
             .Include(e => e.Splits)
@@ -37,33 +41,52 @@ public class UpdateExpenseCommandHandler : IRequestHandler<UpdateExpenseCommand,
 
         var before = CreateSnapshot(expense.Title, expense.TotalAmount, expense.Currency, expense.PayerId, expense.Splits);
 
-        // Validation: Ensure total amount matches sum of splits
-        var splitsSum = request.Splits.Sum(s => s.OwedAmount);
-        if (Math.Abs(splitsSum - request.TotalAmount) > 0.01m)
+        var memberIds = await _context.GroupMembers
+            .Where(member => member.GroupId == request.GroupId)
+            .Select(member => member.UserId)
+            .ToListAsync(cancellationToken);
+
+        if (!memberIds.Contains(request.UserId))
         {
-            throw new ArgumentException("expense.splitSumMismatch");
+            throw new ArgumentException("group.notMember");
         }
 
-        expense.Title = request.Title;
+        if (!memberIds.Contains(request.PayerId) || splits.Any(split => !memberIds.Contains(split.UserId)))
+        {
+            throw new ArgumentException("expense.usersNotMembers");
+        }
+
+        expense.Title = title;
         expense.TotalAmount = request.TotalAmount;
         expense.PayerId = request.PayerId;
         expense.Currency = currency;
-        expense.SplitMethod = request.SplitMethod;
+        expense.SplitMethod = splitMethod;
 
-        // Update splits
-        var existingSplits = await _context.ExpenseSplits.Where(s => s.ExpenseId == expense.Id).ToListAsync(cancellationToken);
-        _context.ExpenseSplits.RemoveRange(existingSplits);
+        var existingSplits = expense.Splits.ToDictionary(split => split.UserId);
+        var nextUserIds = splits.Select(split => split.UserId).ToHashSet();
 
-        var newSplits = request.Splits.Select(s => new ExpenseSplit
+        foreach (var existingSplit in expense.Splits.Where(split => !nextUserIds.Contains(split.UserId)).ToList())
         {
-            ExpenseId = expense.Id,
-            UserId = s.UserId,
-            OwedAmount = s.OwedAmount
-        }).ToList();
+            _context.ExpenseSplits.Remove(existingSplit);
+        }
 
-        _context.ExpenseSplits.AddRange(newSplits);
+        foreach (var split in splits)
+        {
+            if (existingSplits.TryGetValue(split.UserId, out var existingSplit))
+            {
+                existingSplit.OwedAmount = split.OwedAmount;
+                continue;
+            }
 
-        var after = new ExpenseSnapshot(request.Title, request.TotalAmount, currency, request.PayerId, request.Splits);
+            _context.ExpenseSplits.Add(new ExpenseSplit
+            {
+                ExpenseId = expense.Id,
+                UserId = split.UserId,
+                OwedAmount = split.OwedAmount
+            });
+        }
+
+        var after = new ExpenseSnapshot(title, request.TotalAmount, currency, request.PayerId, splits);
         var payload = new ExpenseUpdatedPayload(expense.Id, before, after);
 
         var log = new ActivityLog
@@ -71,8 +94,7 @@ public class UpdateExpenseCommandHandler : IRequestHandler<UpdateExpenseCommand,
             GroupId = request.GroupId,
             UserId = request.UserId,
             ActivityType = "expense.updated",
-            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options),
-            Content = $"updated expense: {request.Title}"
+            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options)
         };
         _context.ActivityLogs.Add(log);
 

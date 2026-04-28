@@ -1,11 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SplitApp.Api.Infrastructure;
 using SplitApp.Application.Queries;
-using System;
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace SplitApp.Api.Controllers;
 
@@ -24,11 +21,8 @@ public class ActivityController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<UserActivityLogDto>>> Get([FromQuery] int skip = 0, [FromQuery] int take = 50)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdString, out var userId))
-        {
-            return Unauthorized();
-        }
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
         var normalizedSkip = Math.Max(skip, 0);
         var normalizedTake = Math.Clamp(take, 1, 200);

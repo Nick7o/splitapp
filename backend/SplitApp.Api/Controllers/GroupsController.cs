@@ -1,14 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using SplitApp.Api.Localization;
+using SplitApp.Api.Infrastructure;
 using SplitApp.Application.Commands;
 using SplitApp.Application.Queries;
-using System;
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace SplitApp.Api.Controllers;
 
@@ -24,156 +19,101 @@ public class GroupsController : ControllerBase
         _mediator = mediator;
     }
 
-    private Guid GetUserId()
-    {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.TryParse(userIdString, out var userId) ? userId : Guid.Empty;
-    }
-
     [HttpPost]
     public async Task<IActionResult> CreateGroup([FromBody] CreateGroupRequest request)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty) return Unauthorized();
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        var command = new CreateGroupCommand(request.Name, request.Currency, userId);
-        var groupId = await _mediator.Send(command);
-
+        var groupId = await _mediator.Send(new CreateGroupCommand(request.Name, request.DefaultCurrency, userId));
         return Ok(new { Id = groupId });
     }
 
     [HttpGet]
     public async Task<IActionResult> GetUserGroups()
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty) return Unauthorized();
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        var query = new GetUserGroupsQuery(userId);
-        var groups = await _mediator.Send(query);
-
-        return Ok(groups);
+        return Ok(await _mediator.Send(new GetUserGroupsQuery(userId)));
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetGroupDetails(Guid id)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty) return Unauthorized();
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        var query = new GetGroupDetailsQuery(id, userId);
-        var group = await _mediator.Send(query);
-
-        if (group == null) return NotFound();
-
-        return Ok(group);
+        var group = await _mediator.Send(new GetGroupDetailsQuery(id, userId));
+        return group is null ? ApiProblemDetails.Result("group.notFound", StatusCodes.Status404NotFound) : Ok(group);
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateGroup(Guid id, [FromBody] UpdateGroupRequest request)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty) return Unauthorized();
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        try
-        {
-            var dto = await _mediator.Send(new UpdateGroupCommand(id, userId, request.Name, request.Description, request.AvatarKey, request.Currency));
-            return Ok(dto);
-        }
-        catch (KeyNotFoundException)
-        {
-            return ErrorMessages.ToResult(HttpContext, "group.notFound", StatusCodes.Status404NotFound);
-        }
-        catch (ArgumentException ex)
-        {
-            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status400BadRequest);
-        }
+        return Ok(await _mediator.Send(new UpdateGroupCommand(
+            id,
+            userId,
+            request.Name,
+            request.Description,
+            request.AvatarKey,
+            request.DefaultCurrency)));
     }
 
     [HttpPost("{id}/join")]
     public async Task<IActionResult> JoinGroup([FromRoute] Guid id)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty) return Unauthorized();
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        var command = new JoinGroupCommand(id, userId);
-        var success = await _mediator.Send(command);
-
-        if (!success) return ErrorMessages.ToResult(HttpContext, "group.notFound", StatusCodes.Status404NotFound);
-
-        return Ok();
+        var success = await _mediator.Send(new JoinGroupCommand(id, userId));
+        return success ? Ok() : ApiProblemDetails.Result("group.notFound", StatusCodes.Status404NotFound);
     }
 
     [HttpGet("{id}/activity")]
     public async Task<IActionResult> GetGroupActivity(Guid id, [FromQuery] int skip = 0, [FromQuery] int take = 50)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty) return Unauthorized();
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
         var normalizedSkip = Math.Max(0, skip);
         var normalizedTake = Math.Clamp(take, 1, 100);
-        var query = new GetGroupActivityQuery(id, userId, normalizedSkip, normalizedTake);
-        var logs = await _mediator.Send(query);
-
-        return Ok(logs);
+        return Ok(await _mediator.Send(new GetGroupActivityQuery(id, userId, normalizedSkip, normalizedTake)));
     }
 
     [HttpGet("{id}/members")]
     public async Task<IActionResult> GetGroupMembers(Guid id)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty) return Unauthorized();
+        var userId = User.GetCurrentUserId();
+        if (userId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        var query = new GetGroupMembersQuery(id, userId);
-        var members = await _mediator.Send(query);
-
-        return Ok(members);
+        return Ok(await _mediator.Send(new GetGroupMembersQuery(id, userId)));
     }
 
     [HttpPut("{id}/members/{userId}/role")]
     public async Task<IActionResult> UpdateMemberRole(Guid id, Guid userId, [FromBody] UpdateGroupMemberRoleRequest request)
     {
-        var actingUserId = GetUserId();
-        if (actingUserId == Guid.Empty) return Unauthorized();
+        var actingUserId = User.GetCurrentUserId();
+        if (actingUserId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        try
-        {
-            var success = await _mediator.Send(new UpdateGroupMemberRoleCommand(id, actingUserId, userId, request.Role));
-            if (!success) return NotFound();
-            return Ok();
-        }
-        catch (KeyNotFoundException)
-        {
-            return ErrorMessages.ToResult(HttpContext, "group.notFound", StatusCodes.Status404NotFound);
-        }
-        catch (ArgumentException ex)
-        {
-            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status400BadRequest);
-        }
+        var success = await _mediator.Send(new UpdateGroupMemberRoleCommand(id, actingUserId, userId, request.Role));
+        return success ? Ok() : ApiProblemDetails.Result("group.memberNotFound", StatusCodes.Status404NotFound);
     }
 
     [HttpDelete("{id}/members/{userId}")]
     public async Task<IActionResult> RemoveGroupMember(Guid id, Guid userId)
     {
-        var actingUserId = GetUserId();
-        if (actingUserId == Guid.Empty) return Unauthorized();
+        var actingUserId = User.GetCurrentUserId();
+        if (actingUserId == Guid.Empty) return ApiProblemDetails.Result("auth.unauthorized", StatusCodes.Status401Unauthorized);
 
-        try
-        {
-            var success = await _mediator.Send(new RemoveGroupMemberCommand(id, actingUserId, userId));
-            if (!success) return NotFound();
-            return Ok();
-        }
-        catch (KeyNotFoundException)
-        {
-            return ErrorMessages.ToResult(HttpContext, "group.notFound", StatusCodes.Status404NotFound);
-        }
-        catch (ArgumentException ex)
-        {
-            return ErrorMessages.ToResult(HttpContext, ex.Message, StatusCodes.Status400BadRequest);
-        }
+        var success = await _mediator.Send(new RemoveGroupMemberCommand(id, actingUserId, userId));
+        return success ? Ok() : ApiProblemDetails.Result("group.memberNotFound", StatusCodes.Status404NotFound);
     }
 }
 
-public record CreateGroupRequest(string Name, string Currency);
-public record UpdateGroupRequest(string Name, string? Description, string? AvatarKey, string Currency);
+public record CreateGroupRequest(string Name, string DefaultCurrency);
+public record UpdateGroupRequest(string Name, string? Description, string? AvatarKey, string DefaultCurrency);
 public record UpdateGroupMemberRoleRequest(int Role);

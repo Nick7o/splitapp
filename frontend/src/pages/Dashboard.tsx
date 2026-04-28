@@ -6,43 +6,20 @@ import AppLayout from '../components/AppLayout';
 import BalancePill from '../components/BalancePill';
 import { useCreateGroupModal } from '../context/CreateGroupModalContext';
 import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
+import type { ApiGroup } from '../types/api';
 import { formatRelativeTime } from '../utils/date';
-
-interface Group {
-  id: string;
-  name: string;
-  avatarKey?: string | null;
-  currency?: string;
-  myBalance: number;
-  myBalanceByCurrency?: Record<string, number>;
-  membersCount: number;
-  lastActive: string;
-  imageUrl: string;
-}
-
-interface RawGroup extends Omit<Group, 'myBalanceByCurrency'> {
-  avatarKey?: string | null;
-  AvatarKey?: string | null;
-  myBalanceByCurrency?: Record<string, number>;
-  MyBalanceByCurrency?: Record<string, number>;
-}
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { isOpen: isModalOpen, open: openModal, close: closeModal } = useCreateGroupModal();
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<ApiGroup[]>([]);
   const [newGroupName, setNewGroupName] = useState('');
 
   const fetchGroups = useCallback(async () => {
     try {
-      const response = await api.get('/groups');
-      const normalizedGroups = (response.data as RawGroup[]).map((group) => ({
-        ...group,
-        avatarKey: group.avatarKey ?? group.AvatarKey ?? null,
-        myBalanceByCurrency: group.myBalanceByCurrency ?? group.MyBalanceByCurrency ?? {}
-      }));
-      setGroups(normalizedGroups);
+      const response = await api.get<ApiGroup[]>('/groups');
+      setGroups(response.data);
     } catch (error) {
       console.error('Failed to fetch groups', error);
     }
@@ -75,7 +52,7 @@ const Dashboard: React.FC = () => {
     try {
       await api.post('/groups', {
         name: newGroupName,
-        currency: 'PLN'
+        defaultCurrency: 'PLN'
       });
       closeModal();
       setNewGroupName('');
@@ -85,7 +62,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const getGroupBalanceEntries = (group: Group): Array<{ currency: string; amount: number }> => {
+  const getGroupBalanceEntries = (group: ApiGroup): Array<{ currency: string; amount: number }> => {
     if (group.myBalanceByCurrency && Object.keys(group.myBalanceByCurrency).length > 0) {
       return Object.entries(group.myBalanceByCurrency).map(([currency, amount]) => ({ currency, amount }));
     }
@@ -93,7 +70,7 @@ const Dashboard: React.FC = () => {
     return [];
   };
 
-  const getVisibleGroupBalances = (group: Group) =>
+  const getVisibleGroupBalances = (group: ApiGroup) =>
     getGroupBalanceEntries(group).filter((entry) => Math.abs(entry.amount) > 0.0001);
 
   const totalBalances = groups.reduce<Record<string, number>>((acc, group) => {

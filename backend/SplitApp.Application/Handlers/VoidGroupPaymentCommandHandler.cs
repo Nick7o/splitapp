@@ -26,8 +26,7 @@ public class VoidGroupPaymentCommandHandler : IRequestHandler<VoidGroupPaymentCo
 
     public async Task Handle(VoidGroupPaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _context.SettlementPayments
-            .Include(item => item.Settlement)
+        var payment = await _context.Payments
             .FirstOrDefaultAsync(item => item.Id == request.PaymentId, cancellationToken);
 
         if (payment is null)
@@ -35,41 +34,39 @@ public class VoidGroupPaymentCommandHandler : IRequestHandler<VoidGroupPaymentCo
             throw new KeyNotFoundException("payment.notFound");
         }
 
-        var settlement = payment.Settlement;
         var isMember = await _context.GroupMembers
-            .AnyAsync(member => member.GroupId == settlement.GroupId && member.UserId == request.ActingUserId, cancellationToken);
+            .AnyAsync(member => member.GroupId == payment.GroupId && member.UserId == request.ActingUserId, cancellationToken);
         if (!isMember)
         {
             throw new ArgumentException("group.notMember");
         }
 
-        if (settlement.Status == SettlementStatus.Cancelled)
+        if (payment.Status == PaymentStatus.Voided)
         {
             throw new ArgumentException("payment.alreadyVoided");
         }
 
-        settlement.Status = SettlementStatus.Cancelled;
-        settlement.PaidAmount = 0m;
-        settlement.ResolvedAt = DateTime.UtcNow;
+        payment.Status = PaymentStatus.Voided;
+        payment.VoidedAt = DateTime.UtcNow;
+        payment.VoidedByUserId = request.ActingUserId;
 
         var payload = new PaymentVoidedPayload(
             payment.Id,
-            settlement.FromUserId,
-            settlement.ToUserId,
+            payment.FromUserId,
+            payment.ToUserId,
             payment.Amount,
-            settlement.Currency,
-            settlement.Note);
+            payment.Currency,
+            payment.Note);
 
         _context.ActivityLogs.Add(new ActivityLog
         {
-            GroupId = settlement.GroupId,
+            GroupId = payment.GroupId,
             UserId = request.ActingUserId,
             ActivityType = "payment.voided",
-            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options),
-            Content = $"voided payment: {payment.Amount} {settlement.Currency}"
+            MetadataJson = JsonSerializer.Serialize(payload, ActivityJson.Options)
         });
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _mediator.Publish(new SettlementUpdatedEvent(settlement.GroupId, settlement.Id, settlement.Status.ToString()), cancellationToken);
+        await _mediator.Publish(new PaymentUpdatedEvent(payment.GroupId, payment.Id, payment.Status.ToString()), cancellationToken);
     }
 }

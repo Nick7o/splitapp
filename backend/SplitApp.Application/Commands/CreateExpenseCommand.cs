@@ -7,11 +7,11 @@ namespace SplitApp.Application.Commands;
 public record CreateExpenseCommand(
     Guid GroupId,
     Guid PayerId,
+    Guid UserId,
     string Title,
     decimal TotalAmount,
     string Currency,
     List<ExpenseSplitDto> Splits,
-    string SplitMethod,
-    bool IsSettlement) : IRequest<Guid>;
+    string SplitMethod) : IRequest<Guid>;
 
 public record ExpenseSplitDto(Guid UserId, decimal OwedAmount);

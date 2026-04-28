@@ -1,29 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, lazy, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import BalancesList from './BalancesList';
-import DebtGraph from './DebtGraph/DebtGraph';
 import SettleUp from './SettleUp';
+import type { ApiDebtTransfer, ApiUser } from '../types/api';
 
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  avatarKey?: string | null;
-}
+const DebtGraph = lazy(() => import('./DebtGraph/DebtGraph'));
 
-interface DebtTransfer {
-  fromUserId: string;
-  toUserId: string;
-  amount: number;
-}
+type Member = ApiUser;
 
 interface BalancesTabProps {
   groupId: string;
   members: Member[];
   balancesByCurrency: Record<string, Record<string, number>>;
-  debtsByCurrency: Record<string, DebtTransfer[]>;
+  debtsByCurrency: Record<string, ApiDebtTransfer[]>;
   currentUserId: string;
   fallbackCurrency: string;
-  onSettlementCreated?: () => void | Promise<void>;
+  onPaymentsChanged?: () => void | Promise<void>;
 }
 
 const BalancesTab: React.FC<BalancesTabProps> = ({
@@ -33,8 +25,9 @@ const BalancesTab: React.FC<BalancesTabProps> = ({
   debtsByCurrency,
   currentUserId,
   fallbackCurrency,
-  onSettlementCreated,
+  onPaymentsChanged,
 }) => {
+  const { t } = useTranslation();
   const currencies = useMemo(() => {
     const keys = new Set([
       ...Object.keys(balancesByCurrency),
@@ -92,14 +85,16 @@ const BalancesTab: React.FC<BalancesTabProps> = ({
             </div>
           ) : null}
 
-          <DebtGraph
-            groupId={groupId}
-            members={members}
-            debts={selectedDebts}
-            currency={selectedCurrency}
-            currentUserId={currentUserId}
-            balancesByUser={balancesByUser}
-          />
+          <Suspense fallback={<div className="app-card p-5 text-sm text-on-surface-variant">{t('common.loading')}</div>}>
+            <DebtGraph
+              groupId={groupId}
+              members={members}
+              debts={selectedDebts}
+              currency={selectedCurrency}
+              currentUserId={currentUserId}
+              balancesByUser={balancesByUser}
+            />
+          </Suspense>
         </div>
       </div>
 
@@ -108,7 +103,7 @@ const BalancesTab: React.FC<BalancesTabProps> = ({
           groupId={groupId}
           debtsByCurrency={debtsByCurrency}
           members={members}
-          onChanged={onSettlementCreated}
+          onChanged={onPaymentsChanged}
         />
       </section>
     </div>
