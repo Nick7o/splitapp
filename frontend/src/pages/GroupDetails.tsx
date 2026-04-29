@@ -5,7 +5,10 @@ import * as signalR from '@microsoft/signalr';
 import AppLayout from '../components/AppLayout';
 import BalancePill from '../components/BalancePill';
 import BalancesTab from '../components/BalancesTab';
+import { MemberNameButton } from '../components/MemberIdentity';
+import MemberProfileDialog, { type MemberProfile } from '../components/MemberProfileDialog';
 import PaymentsTab from '../components/Payments/PaymentsTab';
+import { useToast } from '../context/toast';
 import api, { API_ORIGIN } from '../api';
 import { formatMoney } from '../data/currencies';
 import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
@@ -26,11 +29,13 @@ const GroupDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'payments'>('expenses');
   const [group, setGroup] = useState<ApiGroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [paymentsRefreshKey, setPaymentsRefreshKey] = useState(0);
   const [visibleExpenseCount, setVisibleExpenseCount] = useState(EXPENSE_PAGE_SIZE);
+  const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
 
   const fetchGroupDetails = useCallback(async () => {
     if (!id) return;
@@ -40,10 +45,11 @@ const GroupDetailsPage: React.FC = () => {
       setGroup(response.data);
     } catch (error) {
       console.error('Failed to fetch group details', error);
+      showToast(t('common.error'), { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, showToast, t]);
 
   useEffect(() => {
     fetchGroupDetails();
@@ -130,6 +136,17 @@ const GroupDetailsPage: React.FC = () => {
     return member ? member.name : t('common.unknown');
   };
 
+  const handleCopyInvite = async () => {
+    try {
+      const inviteLink = `${window.location.origin}/groups/${group.id}/join`;
+      await navigator.clipboard.writeText(inviteLink);
+      showToast(t('groupDetails.inviteCopied'), { variant: 'success' });
+    } catch (error) {
+      console.error('Failed to copy invite link', error);
+      showToast(t('common.error'), { variant: 'error' });
+    }
+  };
+
   const balanceEntries = Object.entries(group.myBalanceByCurrency ?? {});
   const visibleBalanceEntries = balanceEntries.filter(([, amount]) => Math.abs(amount) > 0.0001);
   const groupAvatar = group.avatarKey ? GROUP_AVATAR_BY_KEY[group.avatarKey] : null;
@@ -146,7 +163,7 @@ const GroupDetailsPage: React.FC = () => {
     <AppLayout
       title={(
         <span className="flex min-w-0 items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-container text-base">
+          <span className="app-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-container text-base">
             {groupAvatar ? (
               <span aria-hidden="true">{groupAvatar.emoji}</span>
             ) : (
@@ -182,7 +199,7 @@ const GroupDetailsPage: React.FC = () => {
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="min-w-0">
                 <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-surface-container text-2xl shadow-inner">
+                  <div className="app-avatar flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-surface-container text-2xl shadow-inner">
                     {groupAvatar ? (
                       <span aria-hidden="true">{groupAvatar.emoji}</span>
                     ) : (
@@ -212,11 +229,7 @@ const GroupDetailsPage: React.FC = () => {
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
                   <span className="font-label text-sm font-semibold tracking-wide">{t('groupDetails.participants', { count: group.members.length })}</span>
                   <button 
-                    onClick={() => {
-                      const inviteLink = `${window.location.origin}/groups/${group.id}/join`;
-                      navigator.clipboard.writeText(inviteLink);
-                      alert(t('groupDetails.inviteCopied'));
-                    }}
+                    onClick={handleCopyInvite}
                     className="ml-0 rounded-lg border border-white/10 bg-surface-container px-3 py-1.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:ml-3"
                   >
                     {t('groupDetails.copyInvite')}
@@ -277,6 +290,7 @@ const GroupDetailsPage: React.FC = () => {
                 ) : (
                   visibleExpenses.map(expense => {
                     const payerName = getPayerName(expense.payerId);
+                    const payer = group.members.find((member) => member.id === expense.payerId);
                     const isMe = payerName === t('common.me');
                     return (
                       <div 
@@ -290,7 +304,16 @@ const GroupDetailsPage: React.FC = () => {
                           </div>
                           <div className="min-w-0">
                             <h4 className="truncate font-headline text-lg font-bold text-on-surface">{expense.title}</h4>
-                            <p className="font-label text-sm text-on-surface-variant">{t('groupDetails.paidBy')} <span className={`font-semibold ${isMe ? 'text-secondary' : 'text-tertiary'}`}>{payerName}</span></p>
+                            <p className="font-label text-sm text-on-surface-variant">
+                              {t('groupDetails.paidBy')}{' '}
+                              <MemberNameButton
+                                member={payer}
+                                label={payerName}
+                                fallback={payerName}
+                                onOpen={setSelectedMember}
+                                className={isMe ? 'text-secondary' : 'text-tertiary'}
+                              />
+                            </p>
                           </div>
                         </div>
                         <div className="flex w-full items-center justify-between gap-4 md:w-auto md:justify-end">
@@ -349,6 +372,16 @@ const GroupDetailsPage: React.FC = () => {
       >
         <span className="material-symbols-outlined">add</span>
       </button>
+      {selectedMember ? (
+        <MemberProfileDialog
+          member={selectedMember}
+          isCurrentUser={selectedMember.id === currentUserId}
+          balancesByCurrency={Object.fromEntries(
+            Object.entries(group.balancesByCurrency ?? {}).map(([currency, balances]) => [currency, balances[selectedMember.id] ?? 0])
+          )}
+          onClose={() => setSelectedMember(null)}
+        />
+      ) : null}
     </AppLayout>
   );
 };

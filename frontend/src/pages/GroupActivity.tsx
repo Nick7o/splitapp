@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ActivityRow, { type ActivityLog } from '../components/ActivityRow';
 import AppLayout from '../components/AppLayout';
+import type { MemberProfile } from '../components/MemberProfileDialog';
 import type { ApiGroupDetails } from '../types/api';
 
 const PAGE_SIZE = 50;
@@ -13,6 +14,7 @@ const GroupActivity: React.FC = () => {
   const { t } = useTranslation();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+  const [memberProfiles, setMemberProfiles] = useState<Record<string, MemberProfile>>({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [skip, setSkip] = useState(0);
@@ -31,6 +33,7 @@ const GroupActivity: React.FC = () => {
         setSkip(activityResponse.data.length);
         setHasMore(activityResponse.data.length === PAGE_SIZE);
         setMemberNames(Object.fromEntries((groupResponse.data.members ?? []).map((member) => [member.id, member.name])));
+        setMemberProfiles(Object.fromEntries((groupResponse.data.members ?? []).map((member) => [member.id, member])));
       } catch (error) {
         console.error('Failed to fetch activity', error);
       } finally {
@@ -74,7 +77,7 @@ const GroupActivity: React.FC = () => {
           <div className="space-y-6">
             <div className="relative space-y-4 before:absolute before:bottom-0 before:left-5 before:top-0 before:w-0.5 before:-translate-x-px before:bg-gradient-to-b before:from-transparent before:via-outline-variant/30 before:to-transparent">
               {logs.map((log) => (
-                <ActivityRow key={log.id} log={log} memberNames={log.memberNames ?? memberNames} />
+                <ActivityRow key={log.id} log={log} memberNames={log.memberNames ?? memberNames} memberProfiles={memberProfiles} />
               ))}
             </div>
 

@@ -5,13 +5,16 @@ import api from '../api';
 import AppLayout from '../components/AppLayout';
 import BalancePill from '../components/BalancePill';
 import { useCreateGroupModal } from '../context/CreateGroupModalContext';
+import { useToast } from '../context/toast';
 import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
 import type { ApiGroup } from '../types/api';
+import { getApiErrorMessage } from '../utils/apiError';
 import { formatRelativeTime } from '../utils/date';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const { isOpen: isModalOpen, open: openModal, close: closeModal } = useCreateGroupModal();
   const [groups, setGroups] = useState<ApiGroup[]>([]);
   const [newGroupName, setNewGroupName] = useState('');
@@ -22,8 +25,9 @@ const Dashboard: React.FC = () => {
       setGroups(response.data);
     } catch (error) {
       console.error('Failed to fetch groups', error);
+      showToast(getApiErrorMessage(error, t), { variant: 'error' });
     }
-  }, []);
+  }, [showToast, t]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -59,6 +63,7 @@ const Dashboard: React.FC = () => {
       fetchGroups();
     } catch (error) {
       console.error('Failed to create group', error);
+      showToast(getApiErrorMessage(error, t, 'common.error'), { variant: 'error' });
     }
   };
 
@@ -89,7 +94,7 @@ const Dashboard: React.FC = () => {
       title={t('app.name')}
       actions={(
         <button
-          onClick={() => alert(t('common.searchUnderConstruction'))}
+          onClick={() => showToast(t('common.searchUnderConstruction'), { variant: 'info' })}
           className="app-icon-button"
           aria-label={t('common.searchUnderConstruction')}
         >
@@ -173,7 +178,7 @@ const Dashboard: React.FC = () => {
                     className="group app-card flex cursor-pointer flex-col gap-4 p-4 transition-all hover:-translate-y-0.5 hover:bg-surface-container-low active:scale-[0.99] sm:p-5 md:flex-row md:items-center md:justify-between"
                   >
                     <div className="flex w-full min-w-0 items-center gap-4 md:w-auto">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-container">
+                      <div className="app-avatar flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-container">
                         {avatar ? (
                           <span className="text-2xl" aria-hidden="true">{avatar.emoji}</span>
                         ) : group.imageUrl ? (

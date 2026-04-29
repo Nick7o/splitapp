@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using SplitApp.Application.DTOs;
 using SplitApp.Application.Queries;
 using SplitApp.Domain.Interfaces;
 using System.Collections.Generic;
@@ -26,10 +27,22 @@ public class GetGroupActivityQueryHandler : IRequestHandler<GetGroupActivityQuer
 
         if (!isMember) return new List<ActivityLogDto>();
 
-        var memberNames = await _context.GroupMembers
+        var memberProfiles = await _context.GroupMembers
             .Include(gm => gm.User)
             .Where(gm => gm.GroupId == request.GroupId)
-            .ToDictionaryAsync(gm => gm.UserId, gm => gm.User.Name, cancellationToken);
+            .ToDictionaryAsync(
+                gm => gm.UserId,
+                gm => new UserDto
+                {
+                    Id = gm.User.Id,
+                    Name = gm.User.Name,
+                    Email = gm.User.Email,
+                    AvatarKey = gm.User.AvatarKey,
+                    Bio = gm.User.Bio,
+                    HasPassword = !string.IsNullOrEmpty(gm.User.PasswordHash)
+                },
+                cancellationToken);
+        var memberNames = memberProfiles.ToDictionary(member => member.Key, member => member.Value.Name);
 
         var logs = await _context.ActivityLogs
             .Include(a => a.User)
@@ -46,8 +59,10 @@ public class GetGroupActivityQueryHandler : IRequestHandler<GetGroupActivityQuer
             Metadata = TryParseMetadata(a.MetadataJson),
             Content = string.Empty,
             CreatedAt = a.CreatedAt,
+            UserId = a.UserId,
             UserName = a.User.Name,
-            MemberNames = memberNames
+            MemberNames = memberNames,
+            MemberProfiles = memberProfiles
         }).ToList();
     }
 

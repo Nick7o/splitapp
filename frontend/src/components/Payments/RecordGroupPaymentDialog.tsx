@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { useToast } from '../../context/toast';
 import { formatMoney } from '../../data/currencies';
 import { getApiErrorMessage } from '../../utils/apiError';
 import CurrencyPicker from '../CurrencyPicker';
@@ -30,6 +31,7 @@ const RecordGroupPaymentDialog: React.FC<RecordGroupPaymentDialogProps> = ({
   onRecorded,
 }) => {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [fromUserId, setFromUserId] = useState(initialFromUserId);
   const [toUserId, setToUserId] = useState(initialToUserId);
   const [amount, setAmount] = useState(String(initialAmount));
@@ -43,12 +45,17 @@ const RecordGroupPaymentDialog: React.FC<RecordGroupPaymentDialogProps> = ({
     ? toUserId
     : members.find((member) => member.id !== selectedFromUserId)?.id || '';
   const invalidAmount = parsedAmount <= 0 || (maxAmount !== undefined && parsedAmount > maxAmount);
+  const validationError = invalidAmount
+    ? t('payments.invalidAmount')
+    : selectedFromUserId === selectedToUserId
+      ? t('apiErrors.payment.self')
+      : '';
   const payer = useMemo(() => members.find((member) => member.id === selectedFromUserId), [members, selectedFromUserId]);
   const payee = useMemo(() => members.find((member) => member.id === selectedToUserId), [members, selectedToUserId]);
 
   const handleRecord = async () => {
-    if (invalidAmount || !selectedFromUserId || !selectedToUserId || selectedFromUserId === selectedToUserId) {
-      setError(t('payments.invalidAmount'));
+    if (validationError || !selectedFromUserId || !selectedToUserId) {
+      setError(validationError || t('payments.invalidAmount'));
       return;
     }
 
@@ -66,7 +73,9 @@ const RecordGroupPaymentDialog: React.FC<RecordGroupPaymentDialogProps> = ({
       await onRecorded();
       onClose();
     } catch (err) {
-      setError(getApiErrorMessage(err, t, 'payments.recordFailed'));
+      const message = getApiErrorMessage(err, t, 'payments.recordFailed');
+      setError(message);
+      showToast(message, { variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -127,7 +136,11 @@ const RecordGroupPaymentDialog: React.FC<RecordGroupPaymentDialogProps> = ({
           </div>
         </div>
 
-        {error ? <div className="mt-4 rounded-xl bg-error/10 p-3 text-sm font-medium text-error">{error}</div> : null}
+        {validationError || error ? (
+          <div className="mt-4 rounded-xl border border-error/40 bg-error/10 p-3 text-sm font-medium text-error">
+            {error || validationError}
+          </div>
+        ) : null}
 
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" className="app-button-secondary" onClick={onClose}>

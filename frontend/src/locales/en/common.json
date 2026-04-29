@@ -288,6 +288,7 @@
     "voidedPayments": "Voided",
     "empty": "No payments recorded yet.",
     "recordedBy": "Recorded by {{name}} on {{date}}",
+    "recordedByPrefix": "Recorded by",
     "recorded": "Recorded",
     "voided": "Voided",
     "void": "Undo",

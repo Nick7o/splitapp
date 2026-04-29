@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from '../../api';
+import { ToastProvider } from '../../context/ToastContext';
 import RecordGroupPaymentDialog from './RecordGroupPaymentDialog';
 
 vi.mock('../../api', () => ({
@@ -16,6 +18,12 @@ const members = [
   { id: 'user-c', name: 'Cora', email: 'cora@example.com' },
 ];
 
+const renderDialog = (element: ReactElement) => render(
+  <ToastProvider>
+    {element}
+  </ToastProvider>,
+);
+
 describe('RecordGroupPaymentDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +34,7 @@ describe('RecordGroupPaymentDialog', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const onRecorded = vi.fn();
-    render(
+    renderDialog(
       <RecordGroupPaymentDialog
         groupId="group-1"
         members={members}
@@ -57,7 +65,7 @@ describe('RecordGroupPaymentDialog', () => {
 
   it('blocks amounts above suggested maximum', async () => {
     const user = userEvent.setup();
-    render(
+    renderDialog(
       <RecordGroupPaymentDialog
         groupId="group-1"
         members={members}

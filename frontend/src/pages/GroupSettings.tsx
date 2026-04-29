@@ -229,7 +229,7 @@ const GroupSettings: React.FC = () => {
                       } ${!isOwner ? 'cursor-not-allowed opacity-60' : ''}`}
                       title={avatar.label}
                     >
-                      <div className="text-2xl">{avatar.emoji}</div>
+                      <div className="app-avatar text-2xl">{avatar.emoji}</div>
                     </button>
                   );
                 })}
@@ -295,7 +295,7 @@ const GroupSettings: React.FC = () => {
                       onClick={() => setSelectedMember(member)}
                       className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left transition hover:text-primary-fixed focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:w-auto"
                     >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-container text-lg">
+                      <div className="app-avatar flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-container text-lg">
                         {avatar ? avatar.emoji : member.name.slice(0, 1).toUpperCase()}
                       </div>
                       <div className="min-w-0">

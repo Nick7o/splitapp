@@ -52,7 +52,7 @@ const MemberNode: React.FC<NodeProps<MemberNodeType>> = ({ id, data }) => {
             : 'border-outline-variant/25 bg-surface-container text-on-surface hover:border-primary-fixed/55'
         }`}
       >
-        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${avatar?.bg ?? 'bg-surface-container-high text-on-surface'}`}>
+        <span className={`app-avatar flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${avatar?.bg ?? 'bg-surface-container-high text-on-surface'}`}>
           {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : data.name.charAt(0).toUpperCase()}
         </span>
         <span className="min-w-0">

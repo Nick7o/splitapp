@@ -194,7 +194,7 @@ const Profile: React.FC = () => {
                       aria-label={avatar.label}
                       title={avatar.label}
                     >
-                      <span aria-hidden="true">{avatar.emoji}</span>
+                      <span className="app-avatar" aria-hidden="true">{avatar.emoji}</span>
                     </button>
                   );
                 })}

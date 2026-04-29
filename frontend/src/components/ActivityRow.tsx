@@ -4,20 +4,25 @@ import { useTranslation } from 'react-i18next';
 import { getActivityMeta, type ActivityTone } from '../data/activityTypes';
 import { formatMoney } from '../data/currencies';
 import { formatDateTime } from '../utils/date';
+import { MemberNameButton } from './MemberIdentity';
+import MemberProfileDialog, { type MemberProfile } from './MemberProfileDialog';
 
 export interface ActivityLog {
   id: string;
+  userId?: string;
   userName: string;
   createdAt: string;
   content: string;
   activityType: string;
   metadata: unknown;
   memberNames?: Record<string, string>;
+  memberProfiles?: Record<string, MemberProfile>;
 }
 
 interface ActivityRowProps {
   log: ActivityLog;
   memberNames?: Record<string, string>;
+  memberProfiles?: Record<string, MemberProfile>;
   group?: {
     id: string;
     name: string;
@@ -249,10 +254,18 @@ const sameSplits = (left: ExpenseSplit[], right: ExpenseSplit[]): boolean => {
   return normalize(left) === normalize(right);
 };
 
-const SplitTable: React.FC<{ splits: ExpenseSplit[]; currency: string; memberNames?: Record<string, string> }> = ({
+const SplitTable: React.FC<{
+  splits: ExpenseSplit[];
+  currency: string;
+  memberNames?: Record<string, string>;
+  memberProfiles?: Record<string, MemberProfile>;
+  onOpenMember?: (member: MemberProfile) => void;
+}> = ({
   splits,
   currency,
-  memberNames
+  memberNames,
+  memberProfiles,
+  onOpenMember
 }) => {
   const { t } = useTranslation();
 
@@ -272,7 +285,14 @@ const SplitTable: React.FC<{ splits: ExpenseSplit[]; currency: string; memberNam
         <tbody className="divide-y divide-white/10">
           {splits.map((split) => (
             <tr key={`${split.userId}-${split.owedAmount}`}>
-              <td className="px-3 py-2 font-medium text-on-surface-variant">{memberLabel(split.userId, memberNames, t('common.unknown'))}</td>
+              <td className="px-3 py-2 font-medium text-on-surface-variant">
+                <MemberNameButton
+                  member={memberProfiles?.[split.userId]}
+                  fallback={memberLabel(split.userId, memberNames, t('common.unknown'))}
+                  onOpen={(member) => onOpenMember?.(member)}
+                  className="text-on-surface-variant"
+                />
+              </td>
               <td className="px-3 py-2 text-right font-semibold text-on-surface">{money(split.owedAmount, currency)}</td>
             </tr>
           ))}
@@ -282,10 +302,18 @@ const SplitTable: React.FC<{ splits: ExpenseSplit[]; currency: string; memberNam
   );
 };
 
-const SnapshotDetails: React.FC<{ snapshot: ExpenseSnapshot; title?: string; memberNames?: Record<string, string> }> = ({
+const SnapshotDetails: React.FC<{
+  snapshot: ExpenseSnapshot;
+  title?: string;
+  memberNames?: Record<string, string>;
+  memberProfiles?: Record<string, MemberProfile>;
+  onOpenMember?: (member: MemberProfile) => void;
+}> = ({
   snapshot,
   title,
-  memberNames
+  memberNames,
+  memberProfiles,
+  onOpenMember
 }) => {
   const { t } = useTranslation();
 
@@ -307,10 +335,17 @@ const SnapshotDetails: React.FC<{ snapshot: ExpenseSnapshot; title?: string; mem
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
           <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.payer')}</p>
-          <p className="mt-1 font-semibold text-on-surface">{memberLabel(snapshot.payerId, memberNames, t('common.unknown'))}</p>
+          <div className="mt-1">
+            <MemberNameButton
+              member={memberProfiles?.[snapshot.payerId]}
+              fallback={memberLabel(snapshot.payerId, memberNames, t('common.unknown'))}
+              onOpen={(member) => onOpenMember?.(member)}
+              className="text-on-surface"
+            />
+          </div>
         </div>
       </div>
-      <SplitTable splits={snapshot.splits} currency={snapshot.currency} memberNames={memberNames} />
+      <SplitTable splits={snapshot.splits} currency={snapshot.currency} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} />
     </div>
   );
 };
@@ -347,9 +382,16 @@ const DiffRowInner: React.FC<{ label: string; before: string; after: string; cha
   );
 };
 
-const UpdatedDetails: React.FC<{ payload: ExpenseUpdatedPayload; memberNames?: Record<string, string> }> = ({
+const UpdatedDetails: React.FC<{
+  payload: ExpenseUpdatedPayload;
+  memberNames?: Record<string, string>;
+  memberProfiles?: Record<string, MemberProfile>;
+  onOpenMember?: (member: MemberProfile) => void;
+}> = ({
   payload,
-  memberNames
+  memberNames,
+  memberProfiles,
+  onOpenMember
 }) => {
   const { t } = useTranslation();
   const before = payload.before;
@@ -366,11 +408,11 @@ const UpdatedDetails: React.FC<{ payload: ExpenseUpdatedPayload; memberNames?: R
         <div className="grid gap-3 lg:grid-cols-2">
           <div>
             <p className="mb-2 text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.before')}</p>
-            <SplitTable splits={before.splits} currency={before.currency} memberNames={memberNames} />
+            <SplitTable splits={before.splits} currency={before.currency} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} />
           </div>
           <div>
             <p className="mb-2 text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.after')}</p>
-            <SplitTable splits={after.splits} currency={after.currency} memberNames={memberNames} />
+            <SplitTable splits={after.splits} currency={after.currency} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} />
           </div>
         </div>
       </div>
@@ -389,9 +431,17 @@ const RawDetails: React.FC<{ content: string }> = ({ content }) => {
   );
 };
 
-const PaymentDetails: React.FC<{ payload: PaymentPayload; memberNames?: Record<string, string>; voided?: boolean }> = ({
+const PaymentDetails: React.FC<{
+  payload: PaymentPayload;
+  memberNames?: Record<string, string>;
+  memberProfiles?: Record<string, MemberProfile>;
+  onOpenMember?: (member: MemberProfile) => void;
+  voided?: boolean;
+}> = ({
   payload,
   memberNames,
+  memberProfiles,
+  onOpenMember,
   voided = false
 }) => {
   const { t } = useTranslation();
@@ -401,11 +451,25 @@ const PaymentDetails: React.FC<{ payload: PaymentPayload; memberNames?: Record<s
       <div className="grid gap-2 text-sm sm:grid-cols-2">
         <div className="rounded-lg bg-white/5 px-3 py-2">
           <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.from')}</p>
-          <p className="mt-1 font-semibold text-on-surface">{memberLabel(payload.fromUserId, memberNames, t('common.unknown'))}</p>
+          <div className="mt-1">
+            <MemberNameButton
+              member={memberProfiles?.[payload.fromUserId]}
+              fallback={memberLabel(payload.fromUserId, memberNames, t('common.unknown'))}
+              onOpen={(member) => onOpenMember?.(member)}
+              className="text-on-surface"
+            />
+          </div>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
           <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.to')}</p>
-          <p className="mt-1 font-semibold text-on-surface">{memberLabel(payload.toUserId, memberNames, t('common.unknown'))}</p>
+          <div className="mt-1">
+            <MemberNameButton
+              member={memberProfiles?.[payload.toUserId]}
+              fallback={memberLabel(payload.toUserId, memberNames, t('common.unknown'))}
+              onOpen={(member) => onOpenMember?.(member)}
+              className="text-on-surface"
+            />
+          </div>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
           <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.amount')}</p>
@@ -426,39 +490,46 @@ const PaymentDetails: React.FC<{ payload: PaymentPayload; memberNames?: Record<s
   );
 };
 
-const ActivityDetails: React.FC<{ log: ActivityLog; memberNames?: Record<string, string> }> = ({ log, memberNames }) => {
+const ActivityDetails: React.FC<{
+  log: ActivityLog;
+  memberNames?: Record<string, string>;
+  memberProfiles?: Record<string, MemberProfile>;
+  onOpenMember?: (member: MemberProfile) => void;
+}> = ({ log, memberNames, memberProfiles, onOpenMember }) => {
   const { t } = useTranslation();
 
   switch (log.activityType) {
     case 'expense.created': {
       const payload = parseCreatedPayload(log.metadata);
-      return payload ? <SnapshotDetails snapshot={payload} title={t('activityRow.createdExpense')} memberNames={memberNames} /> : <RawDetails content={log.content} />;
+      return payload ? <SnapshotDetails snapshot={payload} title={t('activityRow.createdExpense')} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} /> : <RawDetails content={log.content} />;
     }
     case 'expense.updated': {
       const payload = parseUpdatedPayload(log.metadata);
-      return payload ? <UpdatedDetails payload={payload} memberNames={memberNames} /> : <RawDetails content={log.content} />;
+      return payload ? <UpdatedDetails payload={payload} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} /> : <RawDetails content={log.content} />;
     }
     case 'expense.deleted': {
       const payload = parseDeletedPayload(log.metadata);
-      return payload ? <SnapshotDetails snapshot={payload.before} title={t('activityRow.deletedExpenseSnapshot')} memberNames={memberNames} /> : <RawDetails content={log.content} />;
+      return payload ? <SnapshotDetails snapshot={payload.before} title={t('activityRow.deletedExpenseSnapshot')} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} /> : <RawDetails content={log.content} />;
     }
     case 'payment.recorded': {
       const payload = parsePaymentPayload(log.metadata);
-      return payload ? <PaymentDetails payload={payload} memberNames={memberNames} /> : <RawDetails content={log.content} />;
+      return payload ? <PaymentDetails payload={payload} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} /> : <RawDetails content={log.content} />;
     }
     case 'payment.voided': {
       const payload = parsePaymentPayload(log.metadata);
-      return payload ? <PaymentDetails payload={payload} memberNames={memberNames} voided /> : <RawDetails content={log.content} />;
+      return payload ? <PaymentDetails payload={payload} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} voided /> : <RawDetails content={log.content} />;
     }
     default:
       return <RawDetails content={log.content} />;
   }
 };
 
-const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, group }) => {
+const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, memberProfiles, group }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
   const resolvedMemberNames = memberNames ?? log.memberNames;
+  const resolvedMemberProfiles = memberProfiles ?? log.memberProfiles;
   const meta = useMemo(() => getActivityMeta(log.activityType), [log.activityType]);
   const classes = toneClasses[meta.tone];
   const canExpand = Boolean(log.metadata) || log.activityType === 'legacy';
@@ -477,7 +548,17 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, group }) =>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-bold text-on-surface">{log.userName}</p>
+              {log.userId && resolvedMemberProfiles?.[log.userId] ? (
+                <MemberNameButton
+                  member={resolvedMemberProfiles[log.userId]}
+                  label={log.userName}
+                  fallback={log.userName}
+                  onOpen={setSelectedMember}
+                  className="text-on-surface"
+                />
+              ) : (
+                <p className="font-bold text-on-surface">{log.userName}</p>
+              )}
               <span className={`rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${classes.chip}`}>{t(meta.labelKey)}</span>
               {amountSummary && (
                 <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface">
@@ -513,10 +594,13 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, group }) =>
 
         {expanded && (
           <div className="mt-4 border-t border-white/10 pt-4">
-            <ActivityDetails log={log} memberNames={resolvedMemberNames} />
+            <ActivityDetails log={log} memberNames={resolvedMemberNames} memberProfiles={resolvedMemberProfiles} onOpenMember={setSelectedMember} />
           </div>
         )}
       </article>
+      {selectedMember ? (
+        <MemberProfileDialog member={selectedMember} onClose={() => setSelectedMember(null)} />
+      ) : null}
     </div>
   );
 };

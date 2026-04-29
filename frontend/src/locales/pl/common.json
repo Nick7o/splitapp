@@ -288,6 +288,7 @@
     "voidedPayments": "Cofnięte",
     "empty": "Nie zapisano jeszcze żadnych płatności.",
     "recordedBy": "Zapisane przez {{name}}: {{date}}",
+    "recordedByPrefix": "Zapisane przez",
     "recorded": "Zapisana",
     "voided": "Cofnięta",
     "void": "Cofnij",

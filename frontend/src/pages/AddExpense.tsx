@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 import CurrencyPicker from '../components/CurrencyPicker';
+import { MemberAvatar } from '../components/MemberIdentity';
+import MemberProfileDialog, { type MemberProfile } from '../components/MemberProfileDialog';
+import { useToast } from '../context/toast';
 import type { ApiExpenseDetails, ApiGroupDetails, ApiUser } from '../types/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import { getRecentCurrencies, getStoredUser, pushRecentCurrency } from '../utils/storage';
@@ -12,10 +15,13 @@ const AddExpense: React.FC = () => {
   const { id, expenseId } = useParams<{ id: string; expenseId?: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   
   const [group, setGroup] = useState<ApiGroupDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -126,14 +132,16 @@ const AddExpense: React.FC = () => {
   };
 
   const handleSave = async () => {
+    setFormError('');
+
     if (!group || !amount || !description || !payerId) {
-      alert(t('addExpense.requiredFields'));
+      setFormError(t('addExpense.requiredFields'));
       return;
     }
 
     const totalAmount = parseFloat(amount);
     if (isNaN(totalAmount) || totalAmount <= 0) {
-      alert(t('addExpense.invalidAmount'));
+      setFormError(t('addExpense.invalidAmount'));
       return;
     }
 
@@ -146,7 +154,7 @@ const AddExpense: React.FC = () => {
     
     // Check if the sum matches total amount (with small tolerance for floating point)
     if (Math.abs(splitsSum - totalAmount) > 0.05) {
-      alert(t('addExpense.splitMismatch', { splitTotal: splitsSum.toFixed(2), total: totalAmount.toFixed(2) }));
+      setFormError(t('addExpense.splitMismatch', { splitTotal: splitsSum.toFixed(2), total: totalAmount.toFixed(2) }));
       return;
     }
 
@@ -173,7 +181,9 @@ const AddExpense: React.FC = () => {
       navigate(`/groups/${id}`);
     } catch (error: unknown) {
       console.error('Failed to save expense', error);
-      alert(getApiErrorMessage(error, t, 'addExpense.saveFailed'));
+      const message = getApiErrorMessage(error, t, 'addExpense.saveFailed');
+      setFormError(message);
+      showToast(message, { variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -220,7 +230,7 @@ const AddExpense: React.FC = () => {
                       navigate(`/groups/${id}`);
                     } catch (error) {
                       console.error('Failed to delete expense', error);
-                      alert(t('addExpense.deleteFailed'));
+                      showToast(t('addExpense.deleteFailed'), { variant: 'error' });
                     }
                   }
                 }}
@@ -276,14 +286,32 @@ const AddExpense: React.FC = () => {
                       const isSelected = payerId === member.id;
                       const isMe = member.id === currentUserId;
                       return (
-                        <button 
+                        <div
                           key={member.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setPayerId(member.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              setPayerId(member.id);
+                            }
+                          }}
                           className={`flex items-center gap-2 rounded-xl px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 active:scale-95 ${isSelected ? 'bg-primary text-on-primary shadow-soft ring-1 ring-primary-fixed/30' : 'border border-white/10 bg-surface-container text-on-surface hover:bg-surface-container-high'}`}
                         >
-                          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
-                          <span>{isMe ? t('common.you') : member.name}</span>
-                        </button>
+                          <button
+                            type="button"
+                            className="flex min-w-0 items-center gap-2 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-current/40"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedMember(member);
+                            }}
+                          >
+                            <MemberAvatar member={member} size="sm" className={isSelected ? 'bg-on-primary/15 text-on-primary' : ''} />
+                            <span className="truncate">{isMe ? t('common.you') : member.name}</span>
+                          </button>
+                          {isSelected ? <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span> : null}
+                        </div>
                       );
                     })}
                   </div>
@@ -336,32 +364,38 @@ const AddExpense: React.FC = () => {
                   const owedAmount = calculateOwedAmount(member.id);
 
                   return (
-                    <div key={member.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-surface-container p-4 shadow-sm">
-                      <div className="flex min-w-0 items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-highest text-on-surface-variant">
-                          <span className="material-symbols-outlined">person</span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-headline font-bold text-on-surface">{isMe ? t('common.you') : member.name}</p>
-                          {splitMethod === 'equally' ? (
-                            <p className="text-xs font-medium text-primary-fixed">{owedAmount.toFixed(2)} {currency}</p>
-                          ) : (
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <input 
-                                type="number" 
-                                min="0"
-                                step={splitMethod === 'percent' ? '1' : '0.01'}
-                                className="w-24 rounded-lg border border-white/10 bg-surface-container-low px-3 py-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed/50"
-                                placeholder={splitMethod === 'percent' ? '%' : '0.00'}
-                                value={customSplits[member.id] || ''}
-                                onChange={(e) => handleCustomSplitChange(member.id, e.target.value)}
-                              />
-                              <span className="text-xs font-bold text-on-surface-variant">
-                                {splitMethod === 'percent' ? `% (${owedAmount.toFixed(2)} ${currency})` : currency}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                    <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-surface-container p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                        <button
+                          type="button"
+                          className="flex min-w-0 items-center gap-4 rounded-xl text-left transition hover:text-primary-fixed focus:outline-none focus:ring-2 focus:ring-primary-fixed/50"
+                          onClick={() => setSelectedMember(member)}
+                        >
+                          <MemberAvatar member={member} size="md" className="bg-surface-container-highest text-on-surface-variant" />
+                          <div className="min-w-0">
+                            <p className="truncate font-headline font-bold text-on-surface">{isMe ? t('common.you') : member.name}</p>
+                            {splitMethod === 'equally' ? (
+                              <p className="text-xs font-medium text-primary-fixed">{owedAmount.toFixed(2)} {currency}</p>
+                            ) : null}
+                          </div>
+                        </button>
+
+                        {splitMethod !== 'equally' ? (
+                          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                            <input
+                              type="number"
+                              min="0"
+                              step={splitMethod === 'percent' ? '1' : '0.01'}
+                              className="w-24 rounded-lg border border-white/10 bg-surface-container-low px-3 py-1.5 text-sm font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed/50"
+                              placeholder={splitMethod === 'percent' ? '%' : '0.00'}
+                              value={customSplits[member.id] || ''}
+                              onChange={(e) => handleCustomSplitChange(member.id, e.target.value)}
+                            />
+                            <span className="text-xs font-bold text-on-surface-variant">
+                              {splitMethod === 'percent' ? `% (${owedAmount.toFixed(2)} ${currency})` : currency}
+                            </span>
+                          </div>
+                        ) : null}
                       </div>
                       
                       {splitMethod === 'equally' && (
@@ -381,6 +415,11 @@ const AddExpense: React.FC = () => {
 
           {/* Action Button */}
           <div className="pt-4">
+            {formError ? (
+              <div className="mb-4 rounded-xl border border-error/40 bg-error/10 p-4 text-sm font-semibold text-error">
+                {formError}
+              </div>
+            ) : null}
             <button 
               onClick={handleSave}
               disabled={submitting}
@@ -390,6 +429,16 @@ const AddExpense: React.FC = () => {
             </button>
           </div>
         </div>
+        {selectedMember ? (
+          <MemberProfileDialog
+            member={selectedMember}
+            isCurrentUser={selectedMember.id === currentUserId}
+            balancesByCurrency={Object.fromEntries(
+              Object.entries(group.balancesByCurrency ?? {}).map(([balanceCurrency, balances]) => [balanceCurrency, balances[selectedMember.id] ?? 0])
+            )}
+            onClose={() => setSelectedMember(null)}
+          />
+        ) : null}
     </AppLayout>
   );
 };

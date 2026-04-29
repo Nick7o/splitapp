@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { AVATAR_BY_KEY } from '../../data/avatars';
+import { MemberAvatarButton, MemberNameButton } from '../MemberIdentity';
+import MemberProfileDialog, { type MemberProfile } from '../MemberProfileDialog';
+import { useToast } from '../../context/toast';
 import { formatMoney } from '../../data/currencies';
 import { formatDateTime } from '../../utils/date';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { getStoredUser } from '../../utils/storage';
 import RecordGroupPaymentDialog from './RecordGroupPaymentDialog';
 import type { GroupPayment, PaymentMember } from './types';
 
@@ -20,14 +23,17 @@ const PAGE_SIZE = 50;
 
 const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCurrency, refreshKey, onChanged }) => {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [payments, setPayments] = useState<GroupPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
   const [skip, setSkip] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const membersById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
+  const currentUserId = useMemo(() => getStoredUser().id ?? '', []);
   const firstMember = members[0]?.id ?? '';
   const secondMember = members.find((member) => member.id !== firstMember)?.id ?? '';
 
@@ -47,12 +53,14 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
       setSkip(nextSkip + response.data.length);
       setHasMore(response.data.length === PAGE_SIZE);
     } catch (err) {
-      setError(getApiErrorMessage(err, t));
+      const message = getApiErrorMessage(err, t);
+      setError(message);
+      showToast(message, { variant: 'error' });
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [groupId, t]);
+  }, [groupId, showToast, t]);
 
   useEffect(() => {
     void fetchPayments();
@@ -71,18 +79,10 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
       await api.post(`/payments/${payment.id}/void`);
       await handleChanged();
     } catch (err) {
-      setError(getApiErrorMessage(err, t, 'payments.voidFailed'));
+      const message = getApiErrorMessage(err, t, 'payments.voidFailed');
+      setError(message);
+      showToast(message, { variant: 'error' });
     }
-  };
-
-  const renderAvatar = (member: PaymentMember | undefined) => {
-    const avatar = member?.avatarKey ? AVATAR_BY_KEY[member.avatarKey] : null;
-
-    return (
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold ${avatar?.bg ?? 'bg-surface-container text-on-surface'}`}>
-        {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : member?.name.charAt(0).toUpperCase() ?? '?'}
-      </span>
-    );
   };
 
   const activePayments = payments.filter((payment) => payment.status !== 'Voided');
@@ -95,47 +95,50 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
     const voided = payment.status === 'Voided';
 
     return (
-      <article key={payment.id} className={`app-card p-4 sm:p-5 ${voided ? 'opacity-70' : ''}`}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <article key={payment.id} className={`app-card p-3 sm:p-4 ${voided ? 'opacity-70' : ''}`}>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex shrink-0 items-center">
-              {renderAvatar(from)}
+              <MemberAvatarButton member={from} onOpen={setSelectedMember} />
               <span className="material-symbols-outlined mx-2 text-base text-on-surface-variant">arrow_forward</span>
-              {renderAvatar(to)}
+              <MemberAvatarButton member={to} onOpen={setSelectedMember} />
             </div>
             <div className="min-w-0">
-              <p className="truncate font-headline text-lg font-bold text-on-surface">
-                {t('payments.pays', { from: from?.name ?? t('common.unknown'), to: to?.name ?? t('common.unknown') })}
+              <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-headline text-base font-bold text-on-surface sm:text-lg">
+                <MemberNameButton member={from} fallback={t('common.unknown')} onOpen={setSelectedMember} />
+                <span className="material-symbols-outlined text-base text-on-surface-variant" aria-hidden="true">arrow_forward</span>
+                <MemberNameButton member={to} fallback={t('common.unknown')} onOpen={setSelectedMember} />
               </p>
               <p className="text-sm font-semibold text-on-surface-variant">
-                {t('payments.recordedBy', {
-                  name: recordedBy?.name ?? t('common.unknown'),
-                  date: formatDateTime(payment.recordedAt),
-                })}
+                {t('payments.recordedByPrefix')}{' '}
+                <MemberNameButton
+                  member={recordedBy}
+                  fallback={t('common.unknown')}
+                  onOpen={setSelectedMember}
+                  className="text-on-surface-variant hover:text-primary-fixed"
+                />
+                {`: ${formatDateTime(payment.recordedAt)}`}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
             <p className={`font-headline text-xl font-bold ${voided ? 'text-on-surface-variant line-through' : 'text-primary-fixed'}`}>
               {formatMoney(payment.amount, payment.currency)}
             </p>
             <span className="w-fit rounded-lg bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
               {voided ? t('payments.voided') : t('payments.recorded')}
             </span>
+            {!voided ? (
+              <button type="button" className="app-button-secondary px-3 py-1.5 text-error" onClick={() => handleVoid(payment)}>
+                <span className="material-symbols-outlined text-base">undo</span>
+                {t('payments.void')}
+              </button>
+            ) : null}
           </div>
         </div>
 
-        {payment.note ? <p className="mt-3 text-sm text-on-surface-variant">{payment.note}</p> : null}
-
-        {!voided ? (
-          <div className="mt-5 flex justify-end">
-            <button type="button" className="app-button-secondary py-2 text-error" onClick={() => handleVoid(payment)}>
-              <span className="material-symbols-outlined">undo</span>
-              {t('payments.void')}
-            </button>
-          </div>
-        ) : null}
+        {payment.note ? <p className="mt-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-on-surface-variant">{payment.note}</p> : null}
       </article>
     );
   };
@@ -196,6 +199,14 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
           initialCurrency={fallbackCurrency}
           onClose={() => setManualOpen(false)}
           onRecorded={handleChanged}
+        />
+      ) : null}
+
+      {selectedMember ? (
+        <MemberProfileDialog
+          member={selectedMember}
+          isCurrentUser={selectedMember.id === currentUserId}
+          onClose={() => setSelectedMember(null)}
         />
       ) : null}
     </div>

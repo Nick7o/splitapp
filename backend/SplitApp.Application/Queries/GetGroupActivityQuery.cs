@@ -1,4 +1,5 @@
 using MediatR;
+using SplitApp.Application.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -14,6 +15,8 @@ public class ActivityLogDto
     public JsonElement? Metadata { get; set; }
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public Guid UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
     public Dictionary<Guid, string> MemberNames { get; set; } = new();
+    public Dictionary<Guid, UserDto> MemberProfiles { get; set; } = new();
 }

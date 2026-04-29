@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AVATAR_BY_KEY } from '../data/avatars';
 import { formatMoney } from '../data/currencies';
+import { MemberAvatar } from './MemberIdentity';
 import MemberProfileDialog from './MemberProfileDialog';
 
 interface Member {
@@ -63,7 +63,6 @@ const BalancesList: React.FC<BalancesListProps> = ({
 
       <div className="space-y-2 p-3 sm:p-4">
         {sortedMembers.map((member) => {
-          const avatar = member.avatarKey ? AVATAR_BY_KEY[member.avatarKey] : null;
           const isCurrentUser = member.id === currentUserId;
 
           return (
@@ -71,24 +70,22 @@ const BalancesList: React.FC<BalancesListProps> = ({
               key={member.id}
               type="button"
               onClick={() => setSelectedMember(member)}
-              className={`rounded-xl border p-4 transition-colors ${
+              className={`w-full min-w-0 rounded-xl border p-4 transition-colors ${
                 isCurrentUser
                   ? 'border-primary-fixed/25 bg-primary/12'
                   : 'border-white/10 bg-surface-container-lowest'
               } text-left hover:border-primary-fixed/40 hover:bg-surface-container-low`}
             >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.9fr)] lg:items-center">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${avatar?.bg ?? 'bg-surface-container text-on-surface'}`}>
-                    {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : member.name.charAt(0).toUpperCase()}
-                  </div>
+                  <MemberAvatar member={member} size="lg" className="h-11 w-11" />
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-on-surface">{isCurrentUser ? t('balances.youSuffix', { name: member.name }) : member.name}</p>
                     <p className="truncate text-xs text-on-surface-variant">{member.email}</p>
                   </div>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[18rem]">
+                <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2">
                   {currencies.map((currency) => {
                     const amount = balancesByCurrency[currency]?.[member.id] ?? 0;
 

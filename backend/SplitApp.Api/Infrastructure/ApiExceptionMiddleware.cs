@@ -5,10 +5,12 @@ namespace SplitApp.Api.Infrastructure;
 public class ApiExceptionMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<ApiExceptionMiddleware> _logger;
 
-    public ApiExceptionMiddleware(RequestDelegate next)
+    public ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
     {
         _next = next;
+        _logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -29,8 +31,9 @@ public class ApiExceptionMiddleware
         {
             await WriteProblem(context, ex.Message, StatusCodes.Status400BadRequest);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Unhandled API exception while processing {Method} {Path}", context.Request.Method, context.Request.Path);
             await WriteProblem(context, "internal_error", StatusCodes.Status500InternalServerError);
         }
     }

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using SplitApp.Application.DTOs;
 using SplitApp.Application.Queries;
 using SplitApp.Domain.Interfaces;
 using System.Collections.Generic;
@@ -51,7 +52,17 @@ public class GetUserActivityQueryHandler : IRequestHandler<GetUserActivityQuery,
         var memberRows = await _context.GroupMembers
             .Include(gm => gm.User)
             .Where(gm => visibleGroupIds.Contains(gm.GroupId))
-            .Select(gm => new { gm.GroupId, gm.UserId, gm.User.Name })
+            .Select(gm => new
+            {
+                gm.GroupId,
+                gm.UserId,
+                gm.User.Id,
+                gm.User.Name,
+                gm.User.Email,
+                gm.User.AvatarKey,
+                gm.User.Bio,
+                gm.User.PasswordHash
+            })
             .ToListAsync(cancellationToken);
 
         var memberNamesByGroupId = memberRows
@@ -59,6 +70,21 @@ public class GetUserActivityQueryHandler : IRequestHandler<GetUserActivityQuery,
             .ToDictionary(
                 group => group.Key,
                 group => group.ToDictionary(member => member.UserId, member => member.Name));
+        var memberProfilesByGroupId = memberRows
+            .GroupBy(member => member.GroupId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.ToDictionary(
+                    member => member.UserId,
+                    member => new UserDto
+                    {
+                        Id = member.Id,
+                        Name = member.Name,
+                        Email = member.Email,
+                        AvatarKey = member.AvatarKey,
+                        Bio = member.Bio,
+                        HasPassword = !string.IsNullOrEmpty(member.PasswordHash)
+                    }));
 
         return logs.Select(a => new UserActivityLogDto
         {
@@ -67,12 +93,16 @@ public class GetUserActivityQueryHandler : IRequestHandler<GetUserActivityQuery,
             Metadata = TryParseMetadata(a.MetadataJson),
             Content = string.Empty,
             CreatedAt = a.CreatedAt,
+            UserId = a.UserId,
             UserName = a.User.Name,
             GroupId = a.GroupId!.Value,
             GroupName = a.Group?.Name ?? string.Empty,
             MemberNames = memberNamesByGroupId.TryGetValue(a.GroupId!.Value, out var memberNames)
                 ? memberNames
-                : new Dictionary<Guid, string>()
+                : new Dictionary<Guid, string>(),
+            MemberProfiles = memberProfilesByGroupId.TryGetValue(a.GroupId!.Value, out var memberProfiles)
+                ? memberProfiles
+                : new Dictionary<Guid, UserDto>()
         }).ToList();
     }
 

@@ -5,7 +5,6 @@ import {
   BackgroundVariant,
   Controls,
   MarkerType,
-  MiniMap,
   Position,
   ReactFlow,
   useEdgesState,
@@ -185,7 +184,7 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
       </div>
 
       <DebtGraphContext.Provider value={contextValue}>
-        <div className="debt-graph h-[520px] min-h-[480px] bg-surface-container-lowest">
+        <div className="debt-graph h-[440px] min-h-[380px] bg-surface-container-lowest sm:h-[520px] sm:min-h-[480px]">
           <ReactFlow<MemberNodeType, DebtEdgeType>
             nodes={nodes}
             edges={edges}
@@ -200,12 +199,6 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={18} size={1.3} color="rgba(154, 174, 196, 0.2)" />
-            <MiniMap
-              nodeColor={(node) => (node.id === currentUserId ? '#99F6E4' : '#22334B')}
-              maskColor="rgba(7, 17, 29, 0.72)"
-              pannable
-              zoomable
-            />
             <Controls showInteractive={false} />
           </ReactFlow>
         </div>

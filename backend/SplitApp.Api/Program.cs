@@ -7,6 +7,8 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+const string localDevelopmentJwtKey = "SplitAppLocalDevelopmentJwtKeyOnlyDoNotUseInProduction12345";
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -33,7 +35,23 @@ builder.Services.AddScoped<SplitApp.Application.Services.DebtOptimizationService
 builder.Services.AddScoped<SplitApp.Application.Services.BalanceCalculator>();
 
 // Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing");
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
+    {
+        jwtKey = localDevelopmentJwtKey;
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Jwt:Key"] = jwtKey
+        });
+    }
+    else
+    {
+        throw new InvalidOperationException("JWT Key is missing. Configure Jwt:Key through user secrets or an environment variable.");
+    }
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -81,7 +99,14 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    if (db.Database.IsRelational())
+    {
+        db.Database.Migrate();
+    }
+    else
+    {
+        db.Database.EnsureCreated();
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -102,3 +127,7 @@ app.MapControllers();
 app.MapHub<SplitApp.Api.Hubs.ExpenseHub>("/hubs/expense");
 
 app.Run();
+
+public partial class Program
+{
+}
