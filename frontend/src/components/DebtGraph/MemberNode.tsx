@@ -42,32 +42,32 @@ const MemberNode: React.FC<NodeProps<MemberNodeType>> = ({ id, data }) => {
       onMouseEnter={() => setHoveredNodeId(id)}
       onMouseLeave={() => setHoveredNodeId(null)}
     >
-      <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-0 !bg-secondary/80" />
+      <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-0 !bg-primary-fixed/80" />
       <button
         type="button"
         onClick={() => setSelectedNodeId(selected ? null : id)}
-        className={`nodrag flex w-[180px] items-center gap-3 rounded-2xl border px-3 py-2 text-left shadow-[0_10px_28px_rgba(2,6,23,0.24)] transition-all focus:outline-none focus:ring-2 focus:ring-primary-fixed/70 ${
+        className={`nodrag flex w-[172px] items-center gap-3 rounded-xl border px-3 py-2 text-left shadow-[0_10px_28px_rgba(2,6,23,0.2)] transition-all focus:outline-none focus:ring-2 focus:ring-primary-fixed/70 ${
           data.isCurrentUser
-            ? 'border-primary-fixed/35 bg-primary/16 text-on-surface ring-2 ring-primary-fixed/30'
-            : 'border-outline-variant/25 bg-surface-container text-on-surface hover:border-primary-fixed/55'
+            ? 'border-primary-fixed/35 bg-primary/14 text-on-surface ring-2 ring-primary-fixed/25'
+            : 'border-outline-variant/25 bg-surface-container-low text-on-surface hover:border-primary-fixed/45 hover:bg-surface-container'
         }`}
       >
         <span className={`app-avatar flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${avatar?.bg ?? 'bg-surface-container-high text-on-surface'}`}>
           {avatar ? <span aria-hidden="true">{avatar.emoji}</span> : data.name.charAt(0).toUpperCase()}
         </span>
         <span className="min-w-0">
-          <span className="block truncate font-headline text-base font-bold">{data.name}</span>
+          <span className="block truncate text-sm font-extrabold">{data.name}</span>
           <span className={data.balance >= 0 ? 'block text-xs font-semibold text-primary-fixed' : 'block text-xs font-semibold text-error'}>
             {formatMoney(data.balance, data.currency)}
           </span>
         </span>
       </button>
-      <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-0 !bg-secondary/80" />
+      <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-0 !bg-primary-fixed/80" />
 
       {selected ? (
-        <div className="nodrag absolute left-1/2 top-full z-30 mt-3 w-64 -translate-x-1/2 rounded-2xl border border-white/10 bg-surface p-4 text-left shadow-[0_18px_42px_rgba(2,6,23,0.36)]">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">{t('debtGraph.netBalance')}</p>
-          <p className={`mt-1 font-headline text-xl font-bold ${data.balance >= 0 ? 'text-primary-fixed' : 'text-error'}`}>
+        <div className="nodrag absolute left-1/2 top-full z-30 mt-3 w-64 -translate-x-1/2 rounded-xl border border-white/10 bg-surface/95 p-4 text-left shadow-[0_18px_42px_rgba(2,6,23,0.36)] backdrop-blur">
+          <p className="app-eyebrow">{t('debtGraph.netBalance')}</p>
+          <p className={`app-value mt-2 text-xl ${data.balance >= 0 ? 'text-primary-fixed' : 'text-error'}`}>
             {formatMoney(data.balance, data.currency)}
           </p>
           <div className="mt-3 space-y-2">

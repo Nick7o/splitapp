@@ -69,7 +69,7 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-[0_18px_46px_rgba(2,6,23,0.34)] backdrop-blur-xl ${classes.container}`}
+              className={`motion-slide-down pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-[0_18px_46px_rgba(2,6,23,0.34)] backdrop-blur-xl ${classes.container}`}
               role={toast.variant === 'error' ? 'alert' : 'status'}
             >
               <span className="material-symbols-outlined mt-0.5 text-lg" aria-hidden="true">{classes.icon}</span>

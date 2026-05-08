@@ -17,7 +17,7 @@ export interface GraphPosition {
   y: number;
 }
 
-const NODE_WIDTH = 180;
+const NODE_WIDTH = 172;
 const NODE_HEIGHT = 72;
 const PADDING = 48;
 

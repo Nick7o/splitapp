@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AppLayout from '../components/AppLayout';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import api from '../api';
 import { AVATAR_BY_KEY, AVATARS } from '../data/avatars';
-import { SUPPORTED_LANGUAGES, type SupportedLang } from '../i18n';
 import type { ApiUser } from '../types/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import { clearAuthSession, getStoredUser, setStoredUser } from '../utils/storage';
@@ -13,7 +13,7 @@ const BIO_LIMIT = 280;
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const storedUser = useMemo(() => getStoredUser(), []);
   const [name, setName] = useState(storedUser.name ?? '');
   const [email, setEmail] = useState(storedUser.email ?? '');
@@ -217,30 +217,9 @@ const Profile: React.FC = () => {
           <section className="app-card p-5 sm:p-6">
             <div className="flex flex-col gap-4">
               <div>
-                <h3 className="font-headline text-xl font-bold text-on-surface">{t('profile.language.title')}</h3>
+                <h3 className="font-headline text-xl font-bold text-on-surface">{t('language.title')}</h3>
               </div>
-              <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-surface-container p-1">
-                {SUPPORTED_LANGUAGES.map((language) => {
-                  const selected = i18n.resolvedLanguage === language || i18n.language === language;
-
-                  return (
-                    <button
-                      key={language}
-                      type="button"
-                      onClick={() => {
-                        void i18n.changeLanguage(language as SupportedLang);
-                      }}
-                      className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-                        selected
-                          ? 'bg-primary text-on-primary'
-                          : 'text-on-surface-variant hover:bg-white/10 hover:text-on-surface'
-                      }`}
-                    >
-                      {t(`profile.language.${language}`)}
-                    </button>
-                  );
-                })}
-              </div>
+              <LanguageSwitcher />
             </div>
           </section>
 

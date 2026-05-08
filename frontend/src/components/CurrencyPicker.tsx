@@ -93,7 +93,7 @@ const CurrencyPicker: React.FC<CurrencyPickerProps> = ({
       </button>
 
       {open && (
-        <div className="app-card absolute left-0 right-0 z-50 mt-2 p-3">
+        <div className="app-card motion-pop absolute left-0 right-0 z-50 mt-2 p-3">
           <input
             ref={searchInputRef}
             type="text"
@@ -110,7 +110,7 @@ const CurrencyPicker: React.FC<CurrencyPickerProps> = ({
 
           {recentList.length > 0 && !query && (
             <div className="mt-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">{t('currencyPicker.recent')}</p>
+              <p className="text-xs font-bold uppercase tracking-normal text-on-surface-variant mb-2">{t('currencyPicker.recent')}</p>
               <div className="flex flex-wrap gap-2">
                 {recentList.map((currency) => (
                   <button

@@ -17,6 +17,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const SettleUpPage = lazy(() => import('./pages/SettleUpPage'))
 const GroupActivity = lazy(() => import('./pages/GroupActivity'))
 const GroupSettings = lazy(() => import('./pages/GroupSettings'))
+const DesignSystem = lazy(() => import('./pages/DesignSystem'))
 
 const pageFallback = (
   <div className="flex min-h-screen items-center justify-center bg-background text-sm font-semibold text-on-surface-variant">
@@ -50,6 +51,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/groups/:id/add-expense" element={protectedPage(<AddExpense />)} />
             <Route path="/groups/:id/edit-expense/:expenseId" element={protectedPage(<AddExpense />)} />
             <Route path="/groups/:id/join" element={protectedPage(<JoinGroup />)} />
+            <Route path="/design-system" element={page(<DesignSystem />)} />
           </Routes>
         </CreateGroupModalProvider>
       </ToastProvider>

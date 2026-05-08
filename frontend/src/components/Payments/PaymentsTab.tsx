@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { ConfirmationDialog } from '../Dialog';
 import { MemberAvatarButton, MemberNameButton } from '../MemberIdentity';
 import MemberProfileDialog, { type MemberProfile } from '../MemberProfileDialog';
 import { useToast } from '../../context/toast';
@@ -30,6 +31,8 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
   const [error, setError] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
+  const [paymentToVoid, setPaymentToVoid] = useState<GroupPayment | null>(null);
+  const [voidingPayment, setVoidingPayment] = useState(false);
   const [skip, setSkip] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const membersById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
@@ -71,22 +74,37 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
     await onChanged?.();
   }, [fetchPayments, onChanged]);
 
-  const handleVoid = async (payment: GroupPayment) => {
-    if (!window.confirm(t('payments.voidConfirm'))) return;
+  const handleVoid = (payment: GroupPayment) => {
+    setPaymentToVoid(payment);
+  };
+
+  const confirmVoidPayment = async () => {
+    if (!paymentToVoid) return;
 
     setError('');
+    setVoidingPayment(true);
     try {
-      await api.post(`/payments/${payment.id}/void`);
+      await api.post(`/payments/${paymentToVoid.id}/void`);
       await handleChanged();
+      setPaymentToVoid(null);
     } catch (err) {
       const message = getApiErrorMessage(err, t, 'payments.voidFailed');
       setError(message);
       showToast(message, { variant: 'error' });
+      setPaymentToVoid(null);
+    } finally {
+      setVoidingPayment(false);
     }
   };
 
   const activePayments = payments.filter((payment) => payment.status !== 'Voided');
   const voidedPayments = payments.filter((payment) => payment.status === 'Voided');
+  const totalsByCurrency = activePayments.reduce<Record<string, number>>((totals, payment) => {
+    totals[payment.currency] = (totals[payment.currency] ?? 0) + payment.amount;
+    return totals;
+  }, {});
+  const paymentToVoidFrom = paymentToVoid ? membersById.get(paymentToVoid.fromUserId) : undefined;
+  const paymentToVoidTo = paymentToVoid ? membersById.get(paymentToVoid.toUserId) : undefined;
 
   const renderPayment = (payment: GroupPayment) => {
     const from = membersById.get(payment.fromUserId);
@@ -95,8 +113,8 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
     const voided = payment.status === 'Voided';
 
     return (
-      <article key={payment.id} className={`app-card p-3 sm:p-4 ${voided ? 'opacity-70' : ''}`}>
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <article key={payment.id} className={`rounded-xl border border-white/10 bg-surface-container-lowest p-4 ${voided ? 'opacity-70' : ''}`}>
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(9rem,auto)_auto] md:items-center">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex shrink-0 items-center">
               <MemberAvatarButton member={from} onOpen={setSelectedMember} />
@@ -122,17 +140,29 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 md:justify-end">
-            <p className={`font-headline text-xl font-bold ${voided ? 'text-on-surface-variant line-through' : 'text-primary-fixed'}`}>
+          <div className="flex items-center justify-between gap-3 md:block md:text-right">
+            <p className={`app-value text-lg ${voided ? 'text-on-surface-variant line-through' : 'text-primary-fixed'}`}>
               {formatMoney(payment.amount, payment.currency)}
             </p>
-            <span className="w-fit rounded-lg bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            <span className={`app-status-chip mt-0 md:mt-2 ${
+              voided
+                ? 'border-outline-variant/25 bg-surface-container text-on-surface-variant'
+                : 'border-primary-fixed/25 bg-primary/12 text-primary-fixed'
+            }`}>
               {voided ? t('payments.voided') : t('payments.recorded')}
             </span>
+          </div>
+
+          <div className="flex justify-end">
             {!voided ? (
-              <button type="button" className="app-button-secondary px-3 py-1.5 text-error" onClick={() => handleVoid(payment)}>
+              <button
+                type="button"
+                className="app-icon-button text-error hover:bg-error/10 hover:text-error"
+                onClick={() => handleVoid(payment)}
+                aria-label={t('payments.void')}
+                title={t('payments.void')}
+              >
                 <span className="material-symbols-outlined text-base">undo</span>
-                {t('payments.void')}
               </button>
             ) : null}
           </div>
@@ -148,14 +178,34 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
       <section className="app-card-strong p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-label text-xs font-bold uppercase tracking-[0.18em] text-secondary">{t('payments.historyEyebrow')}</p>
-            <h3 className="mt-2 font-headline text-2xl font-bold text-on-surface">{t('payments.historyTitle')}</h3>
+            <p className="app-eyebrow text-secondary">{t('payments.historyEyebrow')}</p>
+            <h3 className="app-section-title mt-2">{t('payments.historyTitle')}</h3>
             <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-on-surface-variant">{t('payments.historySummary')}</p>
           </div>
           <button type="button" className="app-button-primary" onClick={() => setManualOpen(true)} disabled={members.length < 2}>
             <span className="material-symbols-outlined">payments</span>
             {t('payments.recordManual')}
           </button>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-surface-container-lowest p-3">
+            <p className="app-eyebrow">{t('payments.recordedPayments')}</p>
+            <p className="app-value mt-3 text-3xl">{activePayments.length}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-surface-container-lowest p-3 sm:col-span-2">
+            <p className="app-eyebrow">{t('payments.recordedTotal')}</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {Object.entries(totalsByCurrency).length > 0 ? (
+                Object.entries(totalsByCurrency).map(([currency, amount]) => (
+                  <span key={currency} className="app-data-pill border-primary-fixed/25 bg-primary/12 text-primary-fixed">
+                    {formatMoney(amount, currency)}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm font-semibold text-on-surface-variant">{t('payments.noRecordedTotal')}</span>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -164,9 +214,13 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
 
       {!loading ? (
         <section className="space-y-3">
-          <h3 className="font-label text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">{t('payments.recordedPayments')}</h3>
+          <h3 className="app-eyebrow">{t('payments.recordedPayments')}</h3>
           {activePayments.length === 0 ? (
-            <div className="app-card p-5 text-sm text-on-surface-variant">{t('payments.empty')}</div>
+            <div className="rounded-2xl border border-dashed border-outline-variant/40 bg-surface-container-lowest p-8 text-center">
+              <span className="material-symbols-outlined text-5xl text-on-surface-variant">payments</span>
+              <p className="mt-3 font-headline text-xl font-bold text-on-surface">{t('payments.emptyTitle')}</p>
+              <p className="mx-auto mt-2 max-w-md text-sm font-medium text-on-surface-variant">{t('payments.empty')}</p>
+            </div>
           ) : (
             activePayments.map(renderPayment)
           )}
@@ -175,7 +229,7 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
 
       {!loading && voidedPayments.length > 0 ? (
         <section className="space-y-3">
-          <h3 className="font-label text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">{t('payments.voidedPayments')}</h3>
+          <h3 className="app-eyebrow">{t('payments.voidedPayments')}</h3>
           {voidedPayments.map(renderPayment)}
         </section>
       ) : null}
@@ -209,6 +263,22 @@ const PaymentsTab: React.FC<PaymentsTabProps> = ({ groupId, members, fallbackCur
           onClose={() => setSelectedMember(null)}
         />
       ) : null}
+
+      <ConfirmationDialog
+        open={Boolean(paymentToVoid)}
+        title={t('payments.voidTitle')}
+        message={paymentToVoid ? t('payments.voidBody', {
+          amount: formatMoney(paymentToVoid.amount, paymentToVoid.currency),
+          from: paymentToVoidFrom?.name ?? t('common.unknown'),
+          to: paymentToVoidTo?.name ?? t('common.unknown'),
+        }) : ''}
+        confirmLabel={t('payments.void')}
+        cancelLabel={t('common.cancel')}
+        tone="danger"
+        busy={voidingPayment}
+        onClose={() => setPaymentToVoid(null)}
+        onConfirm={confirmVoidPayment}
+      />
     </div>
   );
 };

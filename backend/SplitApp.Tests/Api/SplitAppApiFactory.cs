@@ -30,6 +30,7 @@ public sealed class SplitAppApiFactory : WebApplicationFactory<Program>
                 ["Jwt:Key"] = "SplitAppIntegrationTestsJwtKeyWithEnoughLength12345",
                 ["Jwt:Issuer"] = "SplitApp",
                 ["Jwt:Audience"] = "SplitAppUsers",
+                ["Cors:AllowedOrigins:0"] = "http://localhost:5173",
                 ["Authentication:Google:ClientId"] = "test-client-id"
             });
         });

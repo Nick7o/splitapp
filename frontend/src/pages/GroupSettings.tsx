@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 import CurrencyPicker from '../components/CurrencyPicker';
+import { ConfirmationDialog } from '../components/Dialog';
 import MemberProfileDialog from '../components/MemberProfileDialog';
 import { AVATAR_BY_KEY } from '../data/avatars';
-import { GROUP_AVATARS } from '../data/groupAvatars';
+import { GROUP_AVATAR_BY_KEY, GROUP_AVATARS } from '../data/groupAvatars';
 import type { ApiGroup, ApiGroupDetails, ApiGroupMember } from '../types/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import { getStoredUser } from '../utils/storage';
@@ -27,6 +28,10 @@ const GroupSettings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<ApiGroupMember | null>(null);
+  const [memberPendingRemoval, setMemberPendingRemoval] = useState<ApiGroupMember | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [leaveBusy, setLeaveBusy] = useState(false);
 
   const currentUserId = useMemo(() => {
     try {
@@ -128,32 +133,44 @@ const GroupSettings: React.FC = () => {
     }
   };
 
-  const handleRemoveMember = async (member: ApiGroupMember) => {
+  const handleRemoveMember = (member: ApiGroupMember) => {
     if (!id || !isOwner || member.userId === group?.ownerId) return;
 
-    const confirmed = window.confirm(t('groupSettings.removeConfirm', { name: member.name }));
-    if (!confirmed) return;
+    setMemberPendingRemoval(member);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!id || !memberPendingRemoval) return;
 
     setError(null);
     setBanner(null);
+    setRemoveBusy(true);
 
     try {
-      await api.delete(`/groups/${id}/members/${member.userId}`);
+      await api.delete(`/groups/${id}/members/${memberPendingRemoval.userId}`);
       await fetchData();
       setBanner(t('groupSettings.memberRemoved'));
+      setMemberPendingRemoval(null);
     } catch (err) {
       console.error('Failed to remove member', err);
       setError(getApiErrorMessage(err, t, 'groupSettings.removeFailed'));
+      setMemberPendingRemoval(null);
+    } finally {
+      setRemoveBusy(false);
     }
   };
 
-  const handleLeaveGroup = async () => {
+  const handleLeaveGroup = () => {
     if (!id || !currentUserId || isOwner) return;
 
-    const confirmed = window.confirm(t('groupSettings.leaveConfirm'));
-    if (!confirmed) return;
+    setLeaveConfirmOpen(true);
+  };
+
+  const confirmLeaveGroup = async () => {
+    if (!id || !currentUserId) return;
 
     setError(null);
+    setLeaveBusy(true);
 
     try {
       await api.delete(`/groups/${id}/members/${currentUserId}`);
@@ -161,6 +178,9 @@ const GroupSettings: React.FC = () => {
     } catch (err) {
       console.error('Failed to leave group', err);
       setError(getApiErrorMessage(err, t, 'groupSettings.leaveFailed'));
+      setLeaveConfirmOpen(false);
+    } finally {
+      setLeaveBusy(false);
     }
   };
 
@@ -179,6 +199,8 @@ const GroupSettings: React.FC = () => {
       </AppLayout>
     );
   }
+
+  const selectedGroupAvatar = avatarKey ? GROUP_AVATAR_BY_KEY[avatarKey] : null;
 
   return (
     <AppLayout title={t('groupSettings.title')} backTo={`/groups/${id}`}>
@@ -199,12 +221,37 @@ const GroupSettings: React.FC = () => {
           </div>
         )}
 
+        <section className="app-card-strong p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="app-avatar flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-surface-container text-3xl">
+                {selectedGroupAvatar ? <span aria-hidden="true">{selectedGroupAvatar.emoji}</span> : <span className="material-symbols-outlined text-on-surface-variant">group</span>}
+              </div>
+              <div className="min-w-0">
+                <p className="font-label text-xs font-bold uppercase tracking-normal text-secondary">{t('groupSettings.title')}</p>
+                <h1 className="app-page-title mt-1 truncate">{name || group.name}</h1>
+                <p className="mt-1 text-sm font-medium text-on-surface-variant">
+                  {t('groupSettings.memberCount', { count: members.length })} • {currency}
+                </p>
+              </div>
+            </div>
+
+            <span className={`w-fit rounded-xl border px-3 py-2 text-xs font-bold uppercase tracking-normal ${
+              isOwner
+                ? 'border-primary-fixed/25 bg-primary/12 text-primary-fixed'
+                : 'border-outline-variant/30 bg-surface-container text-on-surface-variant'
+            }`}>
+              {isOwner ? t('groupSettings.ownerAccess') : t('groupSettings.readOnly')}
+            </span>
+          </div>
+        </section>
+
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.78fr)] xl:items-start">
         <section className={`app-card p-5 sm:p-6 ${!isOwner ? 'opacity-80' : ''}`}>
           <div className="mb-6 flex items-center justify-between">
             <h2 className="font-headline text-2xl font-bold text-on-surface">{t('groupSettings.groupInfo')}</h2>
             {!isOwner && (
-              <span className="rounded-lg bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              <span className="rounded-lg bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-normal text-on-surface-variant">
                 {t('groupSettings.readOnly')}
               </span>
             )}
@@ -222,7 +269,7 @@ const GroupSettings: React.FC = () => {
                       type="button"
                       onClick={() => setAvatarKey(avatar.key)}
                       disabled={!isOwner}
-                      className={`rounded-xl border px-2 py-3 text-center transition ${
+                      className={`min-h-14 rounded-xl border px-2 py-3 text-center transition focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 ${
                         selected
                           ? 'border-primary-fixed/35 bg-primary/16'
                           : 'border-white/10 bg-surface-container-low hover:border-primary-fixed/45 hover:bg-surface-container'
@@ -279,7 +326,12 @@ const GroupSettings: React.FC = () => {
         </section>
 
         <section className="app-card p-5 sm:p-6">
-          <h2 className="mb-6 font-headline text-2xl font-bold text-on-surface">{t('groupSettings.members')}</h2>
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <h2 className="font-headline text-2xl font-bold text-on-surface">{t('groupSettings.members')}</h2>
+            <span className="rounded-lg bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-normal text-on-surface-variant">
+              {members.length}
+            </span>
+          </div>
 
           <div className="space-y-3">
             {members.map((member) => {
@@ -289,11 +341,11 @@ const GroupSettings: React.FC = () => {
 
               return (
                 <div key={member.userId} className="rounded-xl border border-white/10 bg-surface-container-low p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <button
                       type="button"
                       onClick={() => setSelectedMember(member)}
-                      className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left transition hover:text-primary-fixed focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:w-auto"
+                      className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left transition hover:text-primary-fixed focus:outline-none focus:ring-2 focus:ring-primary-fixed/50"
                     >
                       <div className="app-avatar flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-container text-lg">
                         {avatar ? avatar.emoji : member.name.slice(0, 1).toUpperCase()}
@@ -302,24 +354,24 @@ const GroupSettings: React.FC = () => {
                         <p className="truncate font-semibold text-on-surface" title={member.name}>{member.name}</p>
                         <p className="truncate text-sm text-on-surface-variant" title={member.email}>{maskEmail(member.email)}</p>
                       </div>
-                      <span className="shrink-0 rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                      <span className="shrink-0 rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-normal text-on-surface-variant">
                         {roleLabel}
                       </span>
                     </button>
 
                     {isOwner && !isMemberOwner && (
-                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                      <div className="grid grid-cols-2 gap-2 sm:w-56">
                         <button
                           type="button"
                           onClick={() => handleRoleToggle(member)}
-                          className="app-button-secondary py-2"
+                          className="app-button-secondary px-3 py-2"
                         >
                           {member.role === 1 ? t('groupSettings.demote') : t('groupSettings.promote')}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveMember(member)}
-                          className="app-button-secondary py-2 text-error"
+                          className="app-button-secondary px-3 py-2 text-error"
                         >
                           {t('groupSettings.remove')}
                         </button>
@@ -359,6 +411,30 @@ const GroupSettings: React.FC = () => {
             onClose={() => setSelectedMember(null)}
           />
         ) : null}
+
+        <ConfirmationDialog
+          open={Boolean(memberPendingRemoval)}
+          title={t('groupSettings.removeTitle')}
+          message={memberPendingRemoval ? t('groupSettings.removeBody', { name: memberPendingRemoval.name }) : ''}
+          confirmLabel={t('groupSettings.remove')}
+          cancelLabel={t('common.cancel')}
+          tone="danger"
+          busy={removeBusy}
+          onClose={() => setMemberPendingRemoval(null)}
+          onConfirm={confirmRemoveMember}
+        />
+
+        <ConfirmationDialog
+          open={leaveConfirmOpen}
+          title={t('groupSettings.leaveTitle')}
+          message={t('groupSettings.leaveBody')}
+          confirmLabel={t('groupSettings.leaveGroup')}
+          cancelLabel={t('common.cancel')}
+          tone="danger"
+          busy={leaveBusy}
+          onClose={() => setLeaveConfirmOpen(false)}
+          onConfirm={confirmLeaveGroup}
+        />
       </div>
     </AppLayout>
   );

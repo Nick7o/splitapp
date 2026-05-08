@@ -8,6 +8,30 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 const string localDevelopmentJwtKey = "SplitAppLocalDevelopmentJwtKeyOnlyDoNotUseInProduction12345";
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()
+    ?.Select(origin => origin.Trim())
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray() ?? [];
+
+if (allowedOrigins.Length == 0)
+{
+    if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
+    {
+        allowedOrigins =
+        [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:4173"
+        ];
+    }
+    else
+    {
+        throw new InvalidOperationException("CORS allowed origins are missing. Configure Cors:AllowedOrigins for this environment.");
+    }
+}
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -19,7 +43,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -125,6 +149,13 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<SplitApp.Api.Hubs.ExpenseHub>("/hubs/expense");
+app.MapGet("/api", () => Results.Ok(new
+{
+    name = "SplitApp API",
+    status = "ok",
+    health = "/health"
+})).AllowAnonymous();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 
 app.Run();
 

@@ -4,6 +4,7 @@ import { MemberAvatarButton, MemberNameButton } from './MemberIdentity';
 import MemberProfileDialog, { type MemberProfile } from './MemberProfileDialog';
 import { formatMoney } from '../data/currencies';
 import type { ApiDebtTransfer, ApiUser } from '../types/api';
+import { getMemberSettlements } from '../utils/memberSettlements';
 import { getStoredUser } from '../utils/storage';
 import RecordGroupPaymentDialog from './Payments/RecordGroupPaymentDialog';
 
@@ -26,9 +27,10 @@ interface SettleUpProps {
   debtsByCurrency: Record<string, ApiDebtTransfer[]>;
   members: ApiUser[];
   onChanged?: () => void | Promise<void>;
+  compact?: boolean;
 }
 
-const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, onChanged }) => {
+const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, onChanged, compact = false }) => {
   const { t } = useTranslation();
   const [selectedPayment, setSelectedPayment] = useState<SelectedPayment | null>(null);
   const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
@@ -69,11 +71,11 @@ const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, 
   };
 
   const renderTransfer = (transfer: DebtTransfer, currency: string, index: number) => (
-    <div
+    <article
       key={`${currency}-${transfer.fromUserId}-${transfer.toUserId}-${index}`}
-      className="rounded-xl border border-white/10 bg-surface-container-lowest p-3 transition hover:-translate-y-0.5 hover:bg-surface-container-low sm:p-4"
+      className="rounded-xl border border-white/10 bg-surface-container-lowest p-4 transition hover:border-primary-fixed/30 hover:bg-surface-container-low"
     >
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex shrink-0 items-center">
             <MemberAvatarButton member={transfer.fromUser} onOpen={setSelectedMember} size="md" />
@@ -87,35 +89,40 @@ const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, 
               <span className="material-symbols-outlined text-base text-on-surface-variant" aria-hidden="true">arrow_forward</span>
               <MemberNameButton member={transfer.toUser} fallback={transfer.toName} onOpen={setSelectedMember} />
             </p>
-            <p className="mt-0.5 text-sm font-bold text-primary-fixed">
-              {formatMoney(transfer.amount, currency)}
+            <p className="mt-0.5 text-sm font-semibold text-on-surface-variant">
+              {t('payments.inCurrency', { currency })}
             </p>
           </div>
         </div>
 
-        <button
-          type="button"
-          className="app-button-primary w-full py-2 md:w-auto"
-          onClick={() => setSelectedPayment({
-            fromUserId: transfer.fromUserId,
-            toUserId: transfer.toUserId,
-            amount: transfer.amount,
-            currency,
-          })}
-        >
-          <span className="material-symbols-outlined">payments</span>
-          {t('payments.record')}
-        </button>
+        <div className="flex flex-col gap-2 md:items-end">
+          <span className="app-data-pill border-primary-fixed/25 bg-primary/12 text-primary-fixed">
+            {formatMoney(transfer.amount, currency)}
+          </span>
+          <button
+            type="button"
+            className={compact ? 'app-button-secondary w-full px-3 py-2 md:w-auto' : 'app-button-primary w-full py-2 md:w-auto'}
+            onClick={() => setSelectedPayment({
+              fromUserId: transfer.fromUserId,
+              toUserId: transfer.toUserId,
+              amount: transfer.amount,
+              currency,
+            })}
+          >
+            <span className="material-symbols-outlined">payments</span>
+            {t('payments.record')}
+          </button>
+        </div>
       </div>
-    </div>
+    </article>
   );
 
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-label text-xs font-bold uppercase tracking-[0.18em] text-secondary">{t('payments.suggestedEyebrow')}</p>
-          <h2 className="mt-2 font-headline text-2xl font-bold text-on-surface">{t('payments.suggestedTitle')}</h2>
+          <p className="app-eyebrow text-secondary">{t('payments.suggestedEyebrow')}</p>
+          <h2 className={compact ? 'app-card-title mt-2' : 'app-section-title mt-2'}>{t('payments.suggestedTitle')}</h2>
           <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-on-surface-variant">
             {t('payments.suggestedSummary', { count: allTransfers.length })}
           </p>
@@ -123,12 +130,12 @@ const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, 
 
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {totalsByCurrency.length === 0 ? (
-            <span className="rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-1.5 text-sm font-bold text-on-surface-variant">
+            <span className="app-data-pill border-outline-variant/30 bg-surface-container text-on-surface-variant">
               {t('common.settled')}
             </span>
           ) : (
             totalsByCurrency.map((section) => (
-              <span key={section.currency} className="rounded-lg border border-primary-fixed/25 bg-primary/12 px-3 py-1.5 text-sm font-bold text-primary-fixed">
+              <span key={section.currency} className="app-data-pill border-primary-fixed/25 bg-primary/12 text-primary-fixed">
                 {formatMoney(section.total, section.currency)}
               </span>
             ))
@@ -145,7 +152,7 @@ const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, 
           {transferSections.map((section) => (
             <section key={section.currency} className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-label text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                <h3 className="font-label text-xs font-bold uppercase tracking-normal text-on-surface-variant">
                   {t('payments.inCurrency', { currency: section.currency })}
                 </h3>
                 <span className="text-xs font-bold text-on-surface-variant">
@@ -180,6 +187,7 @@ const SettleUp: React.FC<SettleUpProps> = ({ groupId, debtsByCurrency, members, 
         <MemberProfileDialog
           member={selectedMember}
           isCurrentUser={selectedMember.id === currentUserId}
+          settlements={getMemberSettlements(selectedMember.id, debtsByCurrency, members, t('common.unknown'))}
           onClose={() => setSelectedMember(null)}
         />
       ) : null}

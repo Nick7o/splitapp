@@ -13,9 +13,9 @@ interface BalancePillProps {
 }
 
 const SIZE_CLASSES: Record<BalancePillSize, string> = {
-  sm: 'px-3 py-1 text-xs',
-  md: 'px-3.5 py-1.5 text-sm',
-  lg: 'px-4 py-2 text-base'
+  sm: 'h-6 px-2 text-[11px]',
+  md: 'h-7 px-2.5 text-xs',
+  lg: 'h-8 px-3 text-sm'
 };
 
 const BalancePill: React.FC<BalancePillProps> = ({
@@ -32,14 +32,14 @@ const BalancePill: React.FC<BalancePillProps> = ({
 
   const paletteClass = onDark
     ? isNeutral
-      ? 'bg-white/14 text-on-primary border-white/30 shadow-[0_6px_20px_rgba(2,6,23,0.2)]'
+      ? 'bg-white/12 text-on-primary border-white/25'
       : isPositive
-        ? 'bg-primary-fixed/22 text-on-primary border-primary-fixed/45 shadow-[0_6px_20px_rgba(2,6,23,0.2)]'
-        : 'bg-error/28 text-on-primary border-error/45 shadow-[0_6px_20px_rgba(2,6,23,0.2)]'
+        ? 'bg-primary-fixed/18 text-on-primary border-primary-fixed/40'
+        : 'bg-error/22 text-on-primary border-error/40'
     : isNeutral
-      ? 'bg-surface-container text-on-surface-variant border-outline-variant/40'
+      ? 'bg-surface-container-low text-on-surface-variant border-outline-variant/30'
       : isPositive
-        ? 'bg-primary/14 text-primary-fixed border-primary-fixed/30'
+        ? 'bg-primary/12 text-primary-fixed border-primary-fixed/28'
         : 'bg-error-container text-error border-error/30';
 
   const content = explicitLabel
@@ -50,7 +50,7 @@ const BalancePill: React.FC<BalancePillProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center rounded-lg border font-label font-semibold tracking-wide ${SIZE_CLASSES[size]} ${paletteClass}`}
+      className={`inline-flex items-center rounded-md border font-label font-bold leading-none tabular-nums ${SIZE_CLASSES[size]} ${paletteClass}`}
     >
       {content}
     </span>

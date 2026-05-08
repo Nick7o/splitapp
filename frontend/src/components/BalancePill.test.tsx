@@ -7,7 +7,7 @@ describe('BalancePill', () => {
     render(<BalancePill label="Settled" />);
 
     expect(screen.getByText('Settled')).toBeInTheDocument();
-    expect(screen.getByText('Settled')).toHaveClass('bg-surface-container');
+    expect(screen.getByText('Settled')).toHaveClass('bg-surface-container-low');
   });
 
   it('uses positive and negative visual states for money amounts', () => {

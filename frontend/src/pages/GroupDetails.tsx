@@ -5,7 +5,7 @@ import * as signalR from '@microsoft/signalr';
 import AppLayout from '../components/AppLayout';
 import BalancePill from '../components/BalancePill';
 import BalancesTab from '../components/BalancesTab';
-import { MemberNameButton } from '../components/MemberIdentity';
+import { MemberAvatar, MemberNameButton } from '../components/MemberIdentity';
 import MemberProfileDialog, { type MemberProfile } from '../components/MemberProfileDialog';
 import PaymentsTab from '../components/Payments/PaymentsTab';
 import { useToast } from '../context/toast';
@@ -13,6 +13,8 @@ import api, { API_ORIGIN } from '../api';
 import { formatMoney } from '../data/currencies';
 import { GROUP_AVATAR_BY_KEY } from '../data/groupAvatars';
 import type { ApiGroupDetails } from '../types/api';
+import { getMemberSettlements } from '../utils/memberSettlements';
+import { formatDate } from '../utils/date';
 import { getStoredUser } from '../utils/storage';
 
 const EXPENSE_PAGE_SIZE = 30;
@@ -23,6 +25,28 @@ const isExpectedSignalRStartAbort = (error: unknown) => {
   return message.includes('stopped during negotiation')
     || message.includes('AbortError')
     || message.includes('The connection was stopped');
+};
+
+const getDayKey = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toISOString().slice(0, 10);
+};
+
+const getDayLabel = (dayKey: string, t: (key: string) => string): string => {
+  const date = new Date(`${dayKey}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dayKey;
+
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((todayStart.getTime() - dateStart.getTime()) / 86_400_000);
+
+  if (diffDays === 0) return t('activity.today');
+  if (diffDays === 1) return t('activity.yesterday');
+
+  return formatDate(date.toISOString(), { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const GroupDetailsPage: React.FC = () => {
@@ -158,6 +182,17 @@ const GroupDetailsPage: React.FC = () => {
   ];
   const visibleExpenses = group.expenses.slice(0, visibleExpenseCount);
   const hasMoreExpenses = visibleExpenseCount < group.expenses.length;
+  const groupedVisibleExpenses = visibleExpenses.reduce<Record<string, typeof visibleExpenses>>((groups, expense) => {
+    const key = getDayKey(expense.createdAt);
+    groups[key] = [...(groups[key] ?? []), expense];
+    return groups;
+  }, {});
+  const spendingByCurrency = group.expenses.reduce<Record<string, number>>((totals, expense) => {
+    totals[expense.currency] = (totals[expense.currency] ?? 0) + expense.totalAmount;
+    return totals;
+  }, {});
+  const openTransferCount = Object.values(group.optimizedDebtsByCurrency ?? {}).reduce((sum, debts) => sum + debts.length, 0);
+  const memberPreview = group.members.slice(0, 5);
 
   return (
     <AppLayout
@@ -196,7 +231,8 @@ const GroupDetailsPage: React.FC = () => {
     >
         <section className="mb-6 mt-1">
           <div className="app-card-strong overflow-hidden p-5 sm:p-7">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col gap-7">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="mb-5 flex items-center gap-3">
                   <div className="app-avatar flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-surface-container text-2xl shadow-inner">
@@ -207,27 +243,45 @@ const GroupDetailsPage: React.FC = () => {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate font-headline text-2xl font-bold text-on-surface">{group.name}</p>
+                    <p className="app-page-title truncate">{group.name}</p>
                     {group.description ? (
                       <p className="mt-1 max-w-xl text-sm font-medium leading-relaxed text-on-surface-variant">{group.description}</p>
                     ) : null}
                   </div>
                 </div>
-                <p className="mb-2 font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{t('groupDetails.myBalance')}</p>
-                {visibleBalanceEntries.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {visibleBalanceEntries.map(([currency, amount]) => (
-                      <div key={currency}>
-                        <BalancePill amount={amount} currency={currency} size="lg" />
-                      </div>
-                    ))}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-white/10 bg-surface-container-lowest p-4">
+                    <p className="font-label text-[10px] font-bold uppercase tracking-normal text-on-surface-variant">{t('groupDetails.myBalance')}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {visibleBalanceEntries.length > 0 ? (
+                        visibleBalanceEntries.map(([currency, amount]) => (
+                          <BalancePill key={currency} amount={amount} currency={currency} size="sm" />
+                        ))
+                      ) : (
+                        <BalancePill label={t('common.settled')} size="sm" />
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <BalancePill label={t('common.settled')} size="lg" />
-                )}
+                  <div className="rounded-xl border border-white/10 bg-surface-container-lowest p-4">
+                    <p className="font-label text-[10px] font-bold uppercase tracking-normal text-on-surface-variant">{t('groupDetails.totalSpending')}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {Object.entries(spendingByCurrency).length > 0 ? (
+                        Object.entries(spendingByCurrency).map(([currency, amount]) => (
+                          <span key={currency} className="rounded-lg bg-surface-container px-2.5 py-1 text-xs font-bold text-on-surface">{formatMoney(amount, currency)}</span>
+                        ))
+                      ) : (
+                        <span className="text-sm font-semibold text-on-surface-variant">{formatMoney(0, group.defaultCurrency || 'PLN')}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-surface-container-lowest p-4">
+                    <p className="font-label text-[10px] font-bold uppercase tracking-normal text-on-surface-variant">{t('groupDetails.openTransfers')}</p>
+                    <p className={`app-value mt-3 text-3xl ${openTransferCount > 0 ? 'text-primary-fixed' : 'text-on-surface-variant'}`}>{openTransferCount}</p>
+                  </div>
+                </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2 text-on-surface-variant">
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
-                  <span className="font-label text-sm font-semibold tracking-wide">{t('groupDetails.participants', { count: group.members.length })}</span>
+                  <span className="font-label text-sm font-semibold tracking-normal">{t('groupDetails.participants', { count: group.members.length })}</span>
                   <button 
                     onClick={handleCopyInvite}
                     className="ml-0 rounded-lg border border-white/10 bg-surface-container px-3 py-1.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 sm:ml-3"
@@ -236,7 +290,7 @@ const GroupDetailsPage: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <div className="flex w-full flex-col gap-3 lg:w-auto">
                 <button 
                   onClick={() => navigate(`/groups/${id}/add-expense`)}
                   className="app-button-primary"
@@ -252,6 +306,26 @@ const GroupDetailsPage: React.FC = () => {
                   {t('groupDetails.settleUp')}
                 </button>
               </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-5">
+              {memberPreview.map((member) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => setSelectedMember(member)}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-surface-container px-2.5 py-2 text-sm font-semibold text-on-surface transition hover:border-primary-fixed/40 hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary-fixed/50"
+                >
+                  <MemberAvatar member={member} size="sm" className="h-7 w-7 rounded-lg text-xs" />
+                  <span className="max-w-28 truncate">{member.id === currentUserId ? t('common.you') : member.name}</span>
+                </button>
+              ))}
+              {group.members.length > memberPreview.length ? (
+                <span className="rounded-xl border border-white/10 bg-surface-container px-3 py-2 text-sm font-bold text-on-surface-variant">
+                  +{group.members.length - memberPreview.length}
+                </span>
+              ) : null}
+            </div>
             </div>
           </div>
         </section>
@@ -280,98 +354,111 @@ const GroupDetailsPage: React.FC = () => {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'expenses' ? (
-          <div className="space-y-10">
-            <div>
-              <h3 className="mb-4 font-label text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">{t('groupDetails.allExpenses')}</h3>
-              <div className="space-y-4">
+        <div key={activeTab} className="motion-tab-panel">
+          {activeTab === 'expenses' ? (
+            <div className="space-y-10">
+              <div>
+                <h3 className="mb-4 font-label text-xs font-bold uppercase tracking-normal text-on-surface-variant">{t('groupDetails.allExpenses')}</h3>
                 {group.expenses.length === 0 ? (
-                  <p className="text-on-surface-variant">{t('groupDetails.noExpenses')}</p>
+                  <div className="rounded-2xl border border-dashed border-outline-variant/40 bg-surface-container-lowest p-8 text-center">
+                    <span className="material-symbols-outlined text-5xl text-on-surface-variant">receipt_long</span>
+                    <h3 className="mt-4 font-headline text-2xl font-bold text-on-surface">{t('groupDetails.noExpensesTitle')}</h3>
+                    <p className="mx-auto mt-2 max-w-md text-sm font-medium text-on-surface-variant">{t('groupDetails.noExpensesBody')}</p>
+                    <button type="button" className="app-button-primary mt-5" onClick={() => navigate(`/groups/${id}/add-expense`)}>
+                      <span className="material-symbols-outlined">add</span>
+                      {t('groupDetails.addExpense')}
+                    </button>
+                  </div>
                 ) : (
-                  visibleExpenses.map(expense => {
-                    const payerName = getPayerName(expense.payerId);
-                    const payer = group.members.find((member) => member.id === expense.payerId);
-                    const isMe = payerName === t('common.me');
-                    return (
-                      <div 
-                        key={expense.id} 
-                        onClick={() => navigate(`/groups/${id}/edit-expense/${expense.id}`)}
-                        className="app-card flex cursor-pointer flex-col gap-4 p-4 transition-all hover:-translate-y-0.5 hover:bg-surface-container-low active:scale-[0.99] sm:p-5 md:flex-row md:items-center md:justify-between"
-                      >
-                        <div className="flex min-w-0 items-center gap-4">
-                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-inner ${isMe ? 'bg-primary/14 text-primary-fixed' : 'bg-tertiary-fixed text-on-tertiary'}`}>
-                            <span className="material-symbols-outlined">receipt_long</span>
+                  <div className="space-y-7">
+                    {Object.entries(groupedVisibleExpenses).map(([dayKey, expenses]) => (
+                      <section key={dayKey} className="space-y-3">
+                        <h4 className="font-label text-xs font-bold uppercase tracking-normal text-on-surface-variant">{getDayLabel(dayKey, t)}</h4>
+                        <div className="space-y-3">
+                          {expenses.map(expense => {
+                      const payerName = getPayerName(expense.payerId);
+                      const payer = group.members.find((member) => member.id === expense.payerId);
+                      const isMe = payerName === t('common.me');
+                      return (
+                        <button
+                          type="button"
+                          key={expense.id}
+                          onClick={() => navigate(`/groups/${id}/edit-expense/${expense.id}`)}
+                          className="app-card grid w-full cursor-pointer gap-4 p-4 text-left transition-all hover:border-primary-fixed/30 hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 active:scale-[0.99] sm:p-5 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center"
+                        >
+                          <div className="flex min-w-0 items-center gap-4">
+                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-inner ${isMe ? 'bg-primary/14 text-primary-fixed' : 'bg-tertiary-fixed text-on-tertiary'}`}>
+                              <span className="material-symbols-outlined">receipt_long</span>
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="truncate font-headline text-lg font-bold text-on-surface">{expense.title}</h4>
+                              <p className="font-label text-sm text-on-surface-variant">
+                                {t('groupDetails.paidBy')}{' '}
+                                <MemberNameButton
+                                  member={payer}
+                                  label={payerName}
+                                  fallback={payerName}
+                                  onOpen={setSelectedMember}
+                                  className={isMe ? 'text-secondary' : 'text-tertiary'}
+                                />
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="truncate font-headline text-lg font-bold text-on-surface">{expense.title}</h4>
-                            <p className="font-label text-sm text-on-surface-variant">
-                              {t('groupDetails.paidBy')}{' '}
-                              <MemberNameButton
-                                member={payer}
-                                label={payerName}
-                                fallback={payerName}
-                                onOpen={setSelectedMember}
-                                className={isMe ? 'text-secondary' : 'text-tertiary'}
-                              />
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex w-full items-center justify-between gap-4 md:w-auto md:justify-end">
-                          <div className="text-left md:text-right">
-                            <p className="font-headline font-extrabold text-on-surface text-lg">{formatMoney(expense.totalAmount, expense.currency)}</p>
-                            <p className={`font-label text-xs font-medium uppercase tracking-wider ${isMe ? 'text-primary-fixed' : 'text-error'}`}>
-                              {isMe 
-                                ? (expense.totalAmount - expense.myShare > 0 ? t('groupDetails.youGet', { amount: formatMoney(expense.totalAmount - expense.myShare, expense.currency) }) : t('common.settled'))
+                          <div className="flex w-full items-center justify-between gap-4 md:w-auto md:justify-end">
+                            <div className="text-left md:text-right">
+                              <p className="font-headline font-extrabold text-on-surface text-lg">{formatMoney(expense.totalAmount, expense.currency)}</p>
+                              <p className={`font-label text-xs font-medium uppercase tracking-normal ${isMe ? 'text-primary-fixed' : 'text-error'}`}>
+                                {isMe
+                                  ? (expense.totalAmount - expense.myShare > 0 ? t('groupDetails.youGet', { amount: formatMoney(expense.totalAmount - expense.myShare, expense.currency) }) : t('common.settled'))
                                 : (expense.myShare > 0 ? t('groupDetails.youOwe', { amount: formatMoney(expense.myShare, expense.currency) }) : t('common.settled'))}
-                            </p>
+                              </p>
+                            </div>
                           </div>
-                          <span className="material-symbols-outlined text-on-surface-variant opacity-50">chevron_right</span>
+                          <span className="hidden rounded-lg bg-surface-container px-2 py-2 text-on-surface-variant md:inline-flex">
+                            <span className="material-symbols-outlined text-base">chevron_right</span>
+                          </span>
+                        </button>
+                      );
+                          })}
                         </div>
-                      </div>
-                    );
-                  })
+                      </section>
+                    ))}
+                  </div>
                 )}
+                {hasMoreExpenses ? (
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      className="app-button-secondary"
+                      onClick={() => setVisibleExpenseCount((count) => count + EXPENSE_PAGE_SIZE)}
+                    >
+                      <span className="material-symbols-outlined">expand_more</span>
+                      {t('common.loadMore')}
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              {hasMoreExpenses ? (
-                <div className="mt-6 flex justify-center">
-                  <button
-                    type="button"
-                    className="app-button-secondary"
-                    onClick={() => setVisibleExpenseCount((count) => count + EXPENSE_PAGE_SIZE)}
-                  >
-                    <span className="material-symbols-outlined">expand_more</span>
-                    {t('common.loadMore')}
-                  </button>
-                </div>
-              ) : null}
             </div>
-          </div>
-        ) : activeTab === 'balances' ? (
-          <BalancesTab
-            groupId={id || ''}
-            members={group.members}
-            balancesByCurrency={group.balancesByCurrency || {}}
-            debtsByCurrency={group.optimizedDebtsByCurrency || {}}
-            currentUserId={currentUserId}
-            fallbackCurrency={group.defaultCurrency || 'PLN'}
-            onPaymentsChanged={handlePaymentsChanged}
-          />
-        ) : (
-          <PaymentsTab
-            groupId={id || ''}
-            members={group.members}
-            fallbackCurrency={group.defaultCurrency || 'PLN'}
-            refreshKey={paymentsRefreshKey}
-            onChanged={handlePaymentsChanged}
-          />
-        )}
-      {/* Floating Action Button for Adding Expense (Mobile) */}
-      <button 
-        onClick={() => navigate(`/groups/${id}/add-expense`)}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-primary text-on-primary shadow-[0_10px_30px_rgba(15,118,110,0.28)] transition-all hover:-translate-y-1 active:scale-95 md:hidden"
-      >
-        <span className="material-symbols-outlined">add</span>
-      </button>
+          ) : activeTab === 'balances' ? (
+            <BalancesTab
+              groupId={id || ''}
+              members={group.members}
+              balancesByCurrency={group.balancesByCurrency || {}}
+              debtsByCurrency={group.optimizedDebtsByCurrency || {}}
+              currentUserId={currentUserId}
+              fallbackCurrency={group.defaultCurrency || 'PLN'}
+              onPaymentsChanged={handlePaymentsChanged}
+            />
+          ) : (
+            <PaymentsTab
+              groupId={id || ''}
+              members={group.members}
+              fallbackCurrency={group.defaultCurrency || 'PLN'}
+              refreshKey={paymentsRefreshKey}
+              onChanged={handlePaymentsChanged}
+            />
+          )}
+        </div>
       {selectedMember ? (
         <MemberProfileDialog
           member={selectedMember}
@@ -379,6 +466,7 @@ const GroupDetailsPage: React.FC = () => {
           balancesByCurrency={Object.fromEntries(
             Object.entries(group.balancesByCurrency ?? {}).map(([currency, balances]) => [currency, balances[selectedMember.id] ?? 0])
           )}
+          settlements={getMemberSettlements(selectedMember.id, group.optimizedDebtsByCurrency, group.members, t('common.unknown'))}
           onClose={() => setSelectedMember(null)}
         />
       ) : null}

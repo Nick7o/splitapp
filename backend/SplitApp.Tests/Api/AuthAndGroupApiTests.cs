@@ -7,6 +7,34 @@ namespace SplitApp.Tests.Api;
 public class AuthAndGroupApiTests
 {
     [Fact]
+    public async Task Health_endpoint_is_public()
+    {
+        await using var factory = new SplitAppApiFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/health");
+        var payload = await response.Content.ReadFromJsonAsync<HealthPayload>();
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("ok", payload?.Status);
+    }
+
+    [Fact]
+    public async Task Api_root_endpoint_is_public()
+    {
+        await using var factory = new SplitAppApiFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api");
+        var payload = await response.Content.ReadFromJsonAsync<ApiRootPayload>();
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("SplitApp API", payload?.Name);
+        Assert.Equal("ok", payload?.Status);
+        Assert.Equal("/health", payload?.Health);
+    }
+
+    [Fact]
     public async Task Protected_groups_endpoint_returns_problem_details_without_token()
     {
         await using var factory = new SplitAppApiFactory();
@@ -51,7 +79,7 @@ public class AuthAndGroupApiTests
 
         var createGroupResponse = await client.PostAsJsonAsync("/api/groups", new
         {
-            name = "  Demo trip  ",
+            name = "  Weekend trip  ",
             defaultCurrency = "pln"
         });
 
@@ -62,7 +90,7 @@ public class AuthAndGroupApiTests
         var groups = await client.GetFromJsonAsync<List<GroupPayload>>("/api/groups");
         Assert.NotNull(groups);
         var group = Assert.Single(groups);
-        Assert.Equal("Demo trip", group.Name);
+        Assert.Equal("Weekend trip", group.Name);
         Assert.Equal("PLN", group.DefaultCurrency);
         Assert.Equal(1, group.MembersCount);
         Assert.Equal(registered!.User.Id, group.OwnerId);
@@ -70,7 +98,7 @@ public class AuthAndGroupApiTests
         var details = await client.GetFromJsonAsync<GroupDetailsPayload>($"/api/groups/{createdGroup.Id}");
         Assert.NotNull(details);
         Assert.Equal(createdGroup.Id, details!.Id);
-        Assert.Equal("Demo trip", details.Name);
+        Assert.Equal("Weekend trip", details.Name);
         var member = Assert.Single(details.Members);
         Assert.Equal(registered.User.Id, member.Id);
         Assert.Equal("Owner", member.Name);
@@ -97,6 +125,8 @@ public class AuthAndGroupApiTests
     }
 
     private sealed record ApiProblemPayload(string? Code);
+    private sealed record ApiRootPayload(string Name, string Status, string Health);
+    private sealed record HealthPayload(string Status);
     private sealed record AuthPayload(string Token, UserPayload User);
     private sealed record UserPayload(Guid Id, string Name, string Email);
     private sealed record CreateGroupPayload(Guid Id);

@@ -35,7 +35,7 @@ export default {
         "outline-variant": "#9AAEC4",
       },
       fontFamily: {
-        "headline": ["Playfair Display", "serif"],
+        "headline": ["Inter", "sans-serif"],
         "body": ["Inter", "sans-serif"],
         "label": ["Inter", "sans-serif"]
       },

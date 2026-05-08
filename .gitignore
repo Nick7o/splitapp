@@ -34,6 +34,7 @@ yarn-error.log*
 # IDE & OS
 .idea/
 .vscode/
+TEMP/
 
 .DS_Store
 Thumbs.db

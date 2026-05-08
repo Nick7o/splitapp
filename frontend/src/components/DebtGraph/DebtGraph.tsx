@@ -127,7 +127,7 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
       animated: true,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: '#F4B85A',
+        color: '#9EF2DC',
       },
       data: {
         label: formatMoney(debt.amount, currency),
@@ -171,10 +171,11 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
   }), [hoveredNodeId, selectedNodeId]);
 
   return (
-    <section className="app-card-strong overflow-hidden">
+    <section className="app-card overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-outline-variant/20 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h3 className="font-headline text-xl font-bold text-on-surface">{t('debtGraph.title')}</h3>
+          <p className="app-eyebrow">{t('debtGraph.mapEyebrow')}</p>
+          <h3 className="app-card-title mt-2">{t('debtGraph.title')}</h3>
           <p className="text-sm text-on-surface-variant">{t('debtGraph.currencyTransfers', { currency })}</p>
         </div>
         <button type="button" onClick={handleResetLayout} className="app-button-secondary px-4 py-2">
@@ -184,7 +185,7 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
       </div>
 
       <DebtGraphContext.Provider value={contextValue}>
-        <div className="debt-graph h-[440px] min-h-[380px] bg-surface-container-lowest sm:h-[520px] sm:min-h-[480px]">
+        <div className="debt-graph relative h-[420px] min-h-[360px] bg-surface-container-lowest sm:h-[500px] sm:min-h-[460px]">
           <ReactFlow<MemberNodeType, DebtEdgeType>
             nodes={nodes}
             edges={edges}
@@ -194,13 +195,19 @@ const DebtGraph: React.FC<DebtGraphProps> = ({
             onEdgesChange={onEdgesChange}
             onNodeDragStop={handleNodeDragStop}
             fitView
+            fitViewOptions={{ padding: 0.18 }}
             minZoom={0.35}
             maxZoom={1.6}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={18} size={1.3} color="rgba(154, 174, 196, 0.2)" />
+            <Background variant={BackgroundVariant.Lines} gap={36} size={1} color="rgba(154, 174, 196, 0.09)" />
             <Controls showInteractive={false} />
           </ReactFlow>
+          {debts.length === 0 ? (
+            <div className="pointer-events-none absolute inset-x-4 top-4 rounded-xl border border-primary-fixed/20 bg-surface/82 px-4 py-3 text-sm font-semibold text-primary-fixed shadow-soft backdrop-blur">
+              {t('debtGraph.allClear')}
+            </div>
+          ) : null}
         </div>
       </DebtGraphContext.Provider>
     </section>

@@ -47,8 +47,11 @@ const JoinGroup: React.FC = () => {
   if (loading) {
     return (
       <AppLayout title={t('joinGroup.joiningTitle')} maxWidthClassName="max-w-md">
-        <div className="py-20 text-center text-on-surface-variant">
-          {t('joinGroup.joining')}
+        <div className="app-card-strong px-6 py-12 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary-fixed/25 bg-primary/12 text-primary-fixed">
+            <span className="material-symbols-outlined animate-spin" aria-hidden="true">progress_activity</span>
+          </div>
+          <p className="font-headline text-xl font-bold text-on-surface">{t('joinGroup.joining')}</p>
         </div>
       </AppLayout>
     );
@@ -56,15 +59,20 @@ const JoinGroup: React.FC = () => {
 
   return (
     <AppLayout title={t('common.errorTitle')} maxWidthClassName="max-w-md">
-      <div className="app-card p-6 py-12 text-center">
-      <h1 className="mb-4 font-headline text-3xl font-extrabold text-error">{t('common.errorTitle')}</h1>
-      <p className="mb-8 text-on-surface-variant">{error}</p>
-      <button 
-        onClick={() => navigate('/dashboard')}
-        className="app-button-primary"
-      >
-        {t('joinGroup.backToDashboard')}
-      </button>
+      <div className="app-card-strong px-6 py-12 text-center">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-error/25 bg-error/10 text-error">
+          <span className="material-symbols-outlined" aria-hidden="true">link_off</span>
+        </div>
+        <h1 className="mb-3 font-headline text-3xl font-extrabold text-on-surface">{t('common.errorTitle')}</h1>
+        <p className="mb-8 text-sm font-medium leading-relaxed text-on-surface-variant">{error}</p>
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard')}
+          className="app-button-primary"
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">dashboard</span>
+          {t('joinGroup.backToDashboard')}
+        </button>
       </div>
     </AppLayout>
   );

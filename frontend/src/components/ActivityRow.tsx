@@ -276,7 +276,7 @@ const SplitTable: React.FC<{
   return (
     <div className="overflow-hidden rounded-lg border border-white/10">
       <table className="w-full table-fixed text-left text-sm">
-        <thead className="bg-white/5 text-[10px] uppercase tracking-widest text-on-surface-variant">
+        <thead className="bg-white/5 text-[10px] uppercase tracking-normal text-on-surface-variant">
           <tr>
             <th className="px-3 py-2 font-semibold">{t('activityRow.member')}</th>
             <th className="px-3 py-2 text-right font-semibold">{t('activityRow.share')}</th>
@@ -319,22 +319,22 @@ const SnapshotDetails: React.FC<{
 
   return (
     <div className="space-y-3">
-      {title && <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{title}</p>}
+      {title && <p className="text-[10px] font-bold uppercase tracking-normal text-on-surface-variant">{title}</p>}
       <div className="grid gap-2 text-sm sm:grid-cols-2">
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.title')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.title')}</p>
           <p className="mt-1 font-semibold text-on-surface">{snapshot.title || t('activityRow.untitledExpense')}</p>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.amount')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.amount')}</p>
           <p className="mt-1 font-semibold text-on-surface">{money(snapshot.totalAmount, snapshot.currency)}</p>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.currency')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.currency')}</p>
           <p className="mt-1 font-semibold text-on-surface">{snapshot.currency}</p>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.payer')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.payer')}</p>
           <div className="mt-1">
             <MemberNameButton
               member={memberProfiles?.[snapshot.payerId]}
@@ -369,13 +369,13 @@ const DiffRowInner: React.FC<{ label: string; before: string; after: string; cha
 
   return (
     <div className={`grid gap-2 rounded-lg px-3 py-2 text-sm sm:grid-cols-[8rem_1fr_1fr] ${changed ? 'bg-primary/20' : 'bg-white/5'}`}>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</div>
+      <div className="text-[10px] font-bold uppercase tracking-normal text-on-surface-variant">{label}</div>
       <div>
-        <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.before')}</p>
+        <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.before')}</p>
         <p className={`mt-1 break-words ${changed ? 'font-bold text-on-surface' : 'text-on-surface-variant'}`}>{before}</p>
       </div>
       <div>
-        <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.after')}</p>
+        <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.after')}</p>
         <p className={`mt-1 break-words ${changed ? 'font-bold text-on-surface' : 'text-on-surface-variant'}`}>{after}</p>
       </div>
     </div>
@@ -404,14 +404,14 @@ const UpdatedDetails: React.FC<{
       <DiffRow label={t('activityRow.amount')} before={money(before.totalAmount, before.currency)} after={money(after.totalAmount, after.currency)} changed={before.totalAmount !== after.totalAmount || before.currency !== after.currency} />
       <DiffRow label={t('activityRow.payer')} before={memberLabel(before.payerId, memberNames, t('common.unknown'))} after={memberLabel(after.payerId, memberNames, t('common.unknown'))} changed={before.payerId !== after.payerId} />
       <div className={`rounded-lg p-3 ${splitsChanged ? 'bg-primary/20' : 'bg-white/5'}`}>
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{t('activityRow.splits')}</p>
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-normal text-on-surface-variant">{t('activityRow.splits')}</p>
         <div className="grid gap-3 lg:grid-cols-2">
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.before')}</p>
+            <p className="mb-2 text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.before')}</p>
             <SplitTable splits={before.splits} currency={before.currency} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} />
           </div>
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.after')}</p>
+            <p className="mb-2 text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.after')}</p>
             <SplitTable splits={after.splits} currency={after.currency} memberNames={memberNames} memberProfiles={memberProfiles} onOpenMember={onOpenMember} />
           </div>
         </div>
@@ -450,7 +450,7 @@ const PaymentDetails: React.FC<{
     <div className="space-y-3">
       <div className="grid gap-2 text-sm sm:grid-cols-2">
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.from')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.from')}</p>
           <div className="mt-1">
             <MemberNameButton
               member={memberProfiles?.[payload.fromUserId]}
@@ -461,7 +461,7 @@ const PaymentDetails: React.FC<{
           </div>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.to')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.to')}</p>
           <div className="mt-1">
             <MemberNameButton
               member={memberProfiles?.[payload.toUserId]}
@@ -472,17 +472,17 @@ const PaymentDetails: React.FC<{
           </div>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.amount')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.amount')}</p>
           <p className={`mt-1 font-semibold ${voided ? 'text-error line-through' : 'text-on-surface'}`}>{money(payload.amount, payload.currency)}</p>
         </div>
         <div className="rounded-lg bg-white/5 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.currency')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.currency')}</p>
           <p className="mt-1 font-semibold text-on-surface">{payload.currency}</p>
         </div>
       </div>
       {payload.note ? (
         <div className="rounded-lg bg-white/5 px-3 py-2 text-sm">
-          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{t('activityRow.note')}</p>
+          <p className="text-[10px] uppercase tracking-normal text-on-surface-variant">{t('activityRow.note')}</p>
           <p className="mt-1 font-semibold text-on-surface">{payload.note}</p>
         </div>
       ) : null}
@@ -559,9 +559,9 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, memberProfi
               ) : (
                 <p className="font-bold text-on-surface">{log.userName}</p>
               )}
-              <span className={`rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${classes.chip}`}>{t(meta.labelKey)}</span>
+              <span className={`rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-normal ${classes.chip}`}>{t(meta.labelKey)}</span>
               {amountSummary && (
-                <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface">
+                <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-normal text-on-surface">
                   {amountSummary}
                 </span>
               )}
@@ -592,11 +592,15 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ log, memberNames, memberProfi
           </button>
         )}
 
-        {expanded && (
-          <div className="mt-4 border-t border-white/10 pt-4">
-            <ActivityDetails log={log} memberNames={resolvedMemberNames} memberProfiles={resolvedMemberProfiles} onOpenMember={setSelectedMember} />
+        {canExpand ? (
+          <div className={`motion-collapse ${expanded ? 'motion-collapse-open' : ''}`}>
+            <div>
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <ActivityDetails log={log} memberNames={resolvedMemberNames} memberProfiles={resolvedMemberProfiles} onOpenMember={setSelectedMember} />
+              </div>
+            </div>
           </div>
-        )}
+        ) : null}
       </article>
       {selectedMember ? (
         <MemberProfileDialog member={selectedMember} onClose={() => setSelectedMember(null)} />

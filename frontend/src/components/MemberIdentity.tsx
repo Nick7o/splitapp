@@ -68,7 +68,7 @@ export const MemberAvatarButton: React.FC<{
   return (
     <button
       type="button"
-      className={`rounded-xl text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 ${className}`}
+      className={`rounded-xl text-left transition hover:ring-2 hover:ring-primary-fixed/30 focus:outline-none focus:ring-2 focus:ring-primary-fixed/50 ${className}`}
       onClick={(event) => {
         event.stopPropagation();
         onOpen(toMemberProfile(member));

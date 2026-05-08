@@ -60,8 +60,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
               )}
               {hasVisibleTitle ? (
                 <h1 className={titleVariant === 'subtle'
-                  ? 'truncate font-label text-sm font-bold uppercase tracking-[0.14em] text-on-surface-variant'
-                  : 'truncate font-headline text-xl font-bold tracking-wide text-on-surface sm:text-2xl'}
+                  ? 'truncate font-label text-sm font-bold uppercase tracking-normal text-on-surface-variant'
+                  : 'truncate font-headline text-xl font-extrabold tracking-normal text-on-surface sm:text-2xl'}
                 >
                   {title}
                 </h1>
@@ -74,7 +74,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       ) : null}
 
       <main className={`w-full px-4 pb-32 sm:px-6 md:pb-14 md:pl-32 md:pr-8 ${hasHeader ? 'pt-20 md:pt-24' : 'pt-6 md:pt-8'}`}>
-        <div className={`mx-auto w-full ${maxWidthClassName} ${contentClassName}`}>
+        <div className={`motion-page mx-auto w-full ${maxWidthClassName} ${contentClassName}`}>
           {!hasVisibleTitle ? <h1 className="sr-only">{title}</h1> : null}
           {children}
         </div>

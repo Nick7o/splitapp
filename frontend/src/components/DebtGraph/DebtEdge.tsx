@@ -32,8 +32,8 @@ const DebtEdge: React.FC<EdgeProps<DebtEdgeType>> = ({
   const { hoveredNodeId } = useDebtGraphContext();
   const relatedToHoveredNode = !hoveredNodeId || hoveredNodeId === source || hoveredNodeId === target;
   const baseWidth = data?.strokeWidth ?? 3;
-  const strokeWidth = relatedToHoveredNode && hoveredNodeId ? baseWidth * 1.5 : baseWidth;
-  const opacity = relatedToHoveredNode ? 1 : 0.22;
+  const strokeWidth = relatedToHoveredNode && hoveredNodeId ? baseWidth * 1.25 : baseWidth;
+  const opacity = relatedToHoveredNode ? 0.9 : 0.18;
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -50,7 +50,7 @@ const DebtEdge: React.FC<EdgeProps<DebtEdgeType>> = ({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: '#F4B85A',
+          stroke: '#9EF2DC',
           strokeWidth,
           opacity,
           transition: 'opacity 160ms ease, stroke-width 160ms ease',
@@ -58,7 +58,7 @@ const DebtEdge: React.FC<EdgeProps<DebtEdgeType>> = ({
       />
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan rounded-lg border border-white/10 bg-surface px-3 py-1 text-xs font-bold text-on-surface shadow-[0_8px_24px_rgba(2,6,23,0.28)]"
+          className="nodrag nopan app-data-pill border-primary-fixed/25 bg-surface/92 text-primary-fixed shadow-[0_8px_24px_rgba(2,6,23,0.28)] backdrop-blur"
           style={{
             opacity,
             position: 'absolute',
