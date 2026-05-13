@@ -93,7 +93,7 @@ const CurrencyPicker: React.FC<CurrencyPickerProps> = ({
       </button>
 
       {open && (
-        <div className="app-card motion-pop absolute left-0 right-0 z-50 mt-2 p-3">
+        <div className="app-card motion-pop absolute left-0 right-0 z-50 mt-2 border-outline-variant/25 bg-surface-container-high p-3 shadow-[0_20px_48px_rgba(2,6,23,0.45)] ring-1 ring-white/10">
           <input
             ref={searchInputRef}
             type="text"

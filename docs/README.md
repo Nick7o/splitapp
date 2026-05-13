@@ -10,7 +10,6 @@ SplitApp is a group expense sharing web app. The root `README.md` is the public 
 - [Deployment](./DEPLOYMENT.md) - provider-neutral hosting configuration and smoke checks.
 - [Development](./DEVELOPMENT.md) - local setup, configuration, commands, and troubleshooting.
 - [Testing](./TESTING.md) - test strategy, current coverage, commands, and conventions.
-- [Roadmap](./ROADMAP.md) - recommended next work for the self-hostable web app.
 - [Release](./RELEASE.md) - repository release and manual smoke checklist.
 
 ## Current Capabilities

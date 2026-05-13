@@ -48,7 +48,7 @@ Tooling:
 
 ## Architecture Highlights
 
-- Balances are derived from expenses, splits, and recorded payments instead of being stored in a mutable balance table.
+- Balances are currently derived from expenses, splits, and recorded payments instead of being stored in a mutable balance table.
 - Payments are separate from expenses. A payment represents money actually sent between people and can be voided without deleting history.
 - Activity logs store facts (`activityType` + metadata), not translated UI copy.
 - Backend errors use stable `ProblemDetails.code` values that the frontend translates locally.
@@ -94,12 +94,6 @@ The frontend dev server is usually:
 http://localhost:5173
 ```
 
-The internal visual review route is available at:
-
-```text
-http://localhost:5173/design-system
-```
-
 Useful frontend environment variables:
 
 ```text
@@ -142,7 +136,6 @@ Current automated test counts:
 - [Deployment notes](docs/DEPLOYMENT.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Testing guide](docs/TESTING.md)
-- [Roadmap](docs/ROADMAP.md)
 - [Release checklist](docs/RELEASE.md)
 
 ## Current Scope
@@ -150,3 +143,23 @@ Current automated test counts:
 - SplitApp is currently a responsive web app.
 - Native wrappers, install prompts, and offline-first behavior are not part of the current codebase.
 - The settlement suggestion list remains the primary action surface; the debt graph is an inspectable visual aid.
+
+## Screenshots
+
+![Login Page](docs/images/login.png)
+
+![Dashboard](docs/images/dashboard.png)
+
+![Group Dashboard](docs/images/group-dashboard.png)
+
+![Add expense](docs/images/add-expense.png)
+
+![Balances view](docs/images/balances-view.png)
+
+![Activity log](docs/images/activity-log.png)
+
+![Group Edit View](docs/images/group-edit-view.png)
+
+![Profile](docs/images/profile.png)
+
+![Mobile view](docs/images/mobile-view.png)

@@ -1,6 +1,6 @@
 # Testing
 
-SplitApp has automated tests on both backend and frontend. The intent is not to chase a vanity coverage number, but to lock down the rules that can break money, permissions, and user trust.
+SplitApp has automated tests on both backend and frontend.
 
 ## Commands
 
