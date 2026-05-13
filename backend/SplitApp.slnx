@@ -3,4 +3,5 @@
   <Project Path="SplitApp.Application/SplitApp.Application.csproj" />
   <Project Path="SplitApp.Domain/SplitApp.Domain.csproj" />
   <Project Path="SplitApp.Infrastructure/SplitApp.Infrastructure.csproj" />
+  <Project Path="SplitApp.Tests/SplitApp.Tests.csproj" />
 </Solution>

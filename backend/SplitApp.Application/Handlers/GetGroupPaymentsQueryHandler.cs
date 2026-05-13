@@ -1,0 +1,41 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using SplitApp.Application.DTOs;
+using SplitApp.Application.Queries;
+using SplitApp.Domain.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace SplitApp.Application.Handlers;
+
+public class GetGroupPaymentsQueryHandler : IRequestHandler<GetGroupPaymentsQuery, List<GroupPaymentDto>>
+{
+    private readonly IAppDbContext _context;
+
+    public GetGroupPaymentsQueryHandler(IAppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<GroupPaymentDto>> Handle(GetGroupPaymentsQuery request, CancellationToken cancellationToken)
+    {
+        var isMember = await _context.GroupMembers
+            .AnyAsync(member => member.GroupId == request.GroupId && member.UserId == request.UserId, cancellationToken);
+        if (!isMember)
+        {
+            throw new ArgumentException("group.notMember");
+        }
+
+        var payments = await _context.Payments
+            .Where(payment => payment.GroupId == request.GroupId)
+            .OrderByDescending(payment => payment.RecordedAt)
+            .Skip(request.Skip < 0 ? 0 : request.Skip)
+            .Take(request.Take)
+            .ToListAsync(cancellationToken);
+
+        return payments.Select(PaymentMapping.ToDto).ToList();
+    }
+}
